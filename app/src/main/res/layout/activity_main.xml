@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout android:id="@+id/RelativeLayout01"
+android:layout_width="fill_parent"
+android:layout_height="fill_parent"
+xmlns:android="http://schemas.android.com/apk/res/android">
+    <LinearLayout
+        android:id="@+id/lyt_body"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_centerInParent="true">
+
+        <Button android:id="@+id/btnScan"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="blutacz"
+            android:text="blutacz" />
+        <Button android:id="@+id/btnStraight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="straight"
+            android:text="straight" />
+        <Button android:id="@+id/btnRight"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="right"
+            android:text="right" />
+        <Button
+            android:id="@+id/btnLeft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="left"
+            android:text="left" />
+    </LinearLayout>
+
+</RelativeLayout>
