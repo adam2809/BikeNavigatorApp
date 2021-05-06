@@ -10,17 +10,23 @@ import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.ComponentName
+import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
-import android.os.Binder
-import android.os.Bundle
-import android.os.Handler
-import android.os.IBinder
+import android.content.pm.PackageManager
+import android.os.*
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import java.util.*
+
+
+fun Context.hasPermission(permissionType: String): Boolean {
+    return ContextCompat.checkSelfPermission(this, permissionType) ==
+            PackageManager.PERMISSION_GRANTED
+}
 
 class MainActivity : AppCompatActivity() {
     private lateinit var bluetoothManager:BluetoothManager
@@ -62,7 +68,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private companion object {
-        const val REQUEST_ENABLE_BT = 0;
         const val SCAN_PERIOD: Long = 2000;
         const val TAG = "MainActivity";
         const val DEVICE_ADDRESS = "7C:9E:BD:06:E4:AA";
@@ -71,6 +76,7 @@ class MainActivity : AppCompatActivity() {
         const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
     }
+
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -101,6 +107,27 @@ class MainActivity : AppCompatActivity() {
             ENABLE_BLUETOOTH_REQUEST_CODE -> {
                 if (resultCode != Activity.RESULT_OK) {
                     promptEnableBluetooth()
+                }
+            }
+        }
+    }
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_DENIED) {
+                    ActivityCompat.requestPermissions(
+                        this,
+                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                        LOCATION_PERMISSION_REQUEST_CODE
+                    )
+                } else {
+                    initiateScan()
                 }
             }
         }
@@ -139,6 +166,17 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun blutacz(v: View){
+        initiateScan()
+    }
+
+    private fun initiateScan(){
+        if(!hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                LOCATION_PERMISSION_REQUEST_CODE
+            )
+        }
         scanLeDevice { res ->
             bluetoothGatt = res.device.connectGatt(this, false, bluetoothGattCallback)
         }
