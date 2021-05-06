@@ -1,6 +1,7 @@
 package com.example.bikenavigatorapp
 
 import android.Manifest
+import android.app.Activity
 import android.app.Service
 import android.bluetooth.*
 import android.bluetooth.BluetoothAdapter.STATE_CONNECTED
@@ -60,31 +61,49 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    companion object {
+    private companion object {
         const val REQUEST_ENABLE_BT = 0;
         const val SCAN_PERIOD: Long = 2000;
         const val TAG = "MainActivity";
         const val DEVICE_ADDRESS = "7C:9E:BD:06:E4:AA";
         const val SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
         const val CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
+        const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
+        const val LOCATION_PERMISSION_REQUEST_CODE = 2
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        ActivityCompat.requestPermissions(
-            this, arrayOf(
-                Manifest.permission.ACCESS_FINE_LOCATION,
-                Manifest.permission.ACCESS_COARSE_LOCATION,
-                Manifest.permission.ACCESS_BACKGROUND_LOCATION,
-                Manifest.permission.READ_EXTERNAL_STORAGE
-            ), 0
-        )
-
         bluetoothManager = getSystemService(BluetoothManager::class.java)
         bluetoothAdapter = bluetoothManager.adapter
         bluetoothLeScanner= bluetoothAdapter.bluetoothLeScanner
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!bluetoothAdapter.isEnabled) {
+            promptEnableBluetooth()
+        }
+    }
+
+    private fun promptEnableBluetooth() {
+        if (!bluetoothAdapter.isEnabled) {
+            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
+            startActivityForResult(enableBtIntent, ENABLE_BLUETOOTH_REQUEST_CODE)
+        }
+    }
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            ENABLE_BLUETOOTH_REQUEST_CODE -> {
+                if (resultCode != Activity.RESULT_OK) {
+                    promptEnableBluetooth()
+                }
+            }
+        }
     }
 
     private fun scanLeDevice(ifFoundCb:(ScanResult) -> Unit) {
@@ -120,11 +139,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun blutacz(v: View){
-        if (!bluetoothAdapter.isEnabled) {
-            val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
-            startActivityForResult(enableBtIntent, REQUEST_ENABLE_BT);
-        }
-
         scanLeDevice { res ->
             bluetoothGatt = res.device.connectGatt(this, false, bluetoothGattCallback)
         }
