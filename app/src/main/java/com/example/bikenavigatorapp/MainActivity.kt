@@ -2,17 +2,12 @@ package com.example.bikenavigatorapp
 
 import android.Manifest
 import android.app.Activity
-import android.app.Service
 import android.bluetooth.*
-import android.bluetooth.BluetoothAdapter.STATE_CONNECTED
 import android.bluetooth.BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
@@ -29,10 +24,10 @@ fun Context.hasPermission(permissionType: String): Boolean {
 }
 
 class MainActivity : AppCompatActivity() {
-    private lateinit var bluetoothManager:BluetoothManager
-    private lateinit var bluetoothAdapter: BluetoothAdapter
+    private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
+    private val bluetoothAdapter by lazy { bluetoothManager.adapter }
+    private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
 
-    private lateinit var bluetoothLeScanner: BluetoothLeScanner
     private var scanning = false
     private val handler = Handler()
 
@@ -71,20 +66,15 @@ class MainActivity : AppCompatActivity() {
         const val SCAN_PERIOD: Long = 2000;
         const val TAG = "MainActivity";
         const val DEVICE_ADDRESS = "7C:9E:BD:06:E4:AA";
-        const val SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
-        const val CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
+        const val DISPLAY_SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
+        const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
         const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
     }
 
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        bluetoothManager = getSystemService(BluetoothManager::class.java)
-        bluetoothAdapter = bluetoothManager.adapter
-        bluetoothLeScanner= bluetoothAdapter.bluetoothLeScanner
     }
 
     override fun onResume() {
@@ -224,11 +214,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun findCharacteristic(gatt:BluetoothGatt?):BluetoothGattCharacteristic?{
         val found = gatt!!.services.let {
-            it.filter { service -> service.also { Log.d(TAG,"Service in gatt discovered: ${service.uuid}") }.uuid == UUID.fromString(SERVICE_UUID); }
+            it.filter { service -> service.also { Log.d(TAG,"Service in gatt discovered: ${service.uuid}") }.uuid == UUID.fromString(DISPLAY_SERVICE_UUID); }
         }.flatMap {
             it.characteristics
         }.let {
-            it.filter { characteristic -> characteristic.also { Log.d(TAG,"Characteristic in gatt discovered: ${characteristic.uuid}") }.uuid == UUID.fromString(CHARACTERISTIC_UUID) }
+            it.filter { characteristic -> characteristic.also { Log.d(TAG,"Characteristic in gatt discovered: ${characteristic.uuid}") }.uuid == UUID.fromString(DISPLAY_CHARACTERISTIC_UUID) }
         }
         return found.elementAtOrNull(0);
     }
