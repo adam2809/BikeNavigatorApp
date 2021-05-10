@@ -209,8 +209,8 @@ class MainActivity : AppCompatActivity() {
 //            displayCharacteristic?.value = ByteArray(1){ 3 }
 //            gatt.writeCharacteristic(displayCharacteristic)
 //        } ?: Log.e(TAG,"Unable to write straight")
-        val nav = Navigator(this)
-        nav.updateDirections()
+        val nav = DirApi(this)
+        nav.updateSteps()
     }
 
     private fun findCharacteristic(gatt:BluetoothGatt?):BluetoothGattCharacteristic?{
