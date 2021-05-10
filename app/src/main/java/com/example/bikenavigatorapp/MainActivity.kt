@@ -199,16 +199,19 @@ class MainActivity : AppCompatActivity() {
         } ?: Log.e(TAG,"Unable to write straight")
     }
     fun right(v: View){
-//        if(!isBtDeviceReadyForAccess()){
-//            Log.w(TAG,"Attempting to access device which is not ready")
-//            return
-//        }
-//
-//        bluetoothGatt?.let { gatt ->
-//            displayCharacteristic?.writeType = WRITE_TYPE_DEFAULT
-//            displayCharacteristic?.value = ByteArray(1){ 3 }
-//            gatt.writeCharacteristic(displayCharacteristic)
-//        } ?: Log.e(TAG,"Unable to write straight")
+        if(!isBtDeviceReadyForAccess()){
+            Log.w(TAG,"Attempting to access device which is not ready")
+            return
+        }
+
+        bluetoothGatt?.let { gatt ->
+            displayCharacteristic?.writeType = WRITE_TYPE_DEFAULT
+            displayCharacteristic?.value = ByteArray(1){ 3 }
+            gatt.writeCharacteristic(displayCharacteristic)
+        } ?: Log.e(TAG,"Unable to write straight")
+    }
+
+    fun updateSteps(v: View){
         val nav = DirApi(this)
         nav.updateSteps()
     }
