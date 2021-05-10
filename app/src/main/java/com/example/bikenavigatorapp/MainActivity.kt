@@ -2,6 +2,7 @@ package com.example.bikenavigatorapp
 
 import android.Manifest
 import android.app.Activity
+import android.app.PendingIntent
 import android.bluetooth.*
 import android.bluetooth.BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
 import android.bluetooth.le.ScanCallback
@@ -15,6 +16,9 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofencingRequest
+import com.google.android.gms.location.LocationServices
 import java.util.*
 
 
@@ -27,6 +31,15 @@ class MainActivity : AppCompatActivity() {
     private val bluetoothManager by lazy { getSystemService(BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
+    private val geofencingClient by lazy { LocationServices.getGeofencingClient(this) }
+    private val geofencePendingIntent: PendingIntent by lazy {
+        val intent = Intent(this, GeofenceBroadcastReceiver::class.java)
+        PendingIntent.getBroadcast(
+            this,
+            0,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT)
+    }
 
     private var scanning = false
     private val handler = Handler()
@@ -69,6 +82,7 @@ class MainActivity : AppCompatActivity() {
         const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
         const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
+        const val GEOFENCE_REQ_IDS_START = 100
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -211,12 +225,68 @@ class MainActivity : AppCompatActivity() {
         } ?: Log.e(TAG,"Unable to write straight")
     }
 
+
+    fun buildGeofences(steps:List<DirApi.Step>):List<Geofence>{
+        val res = mutableListOf<Geofence>()
+        Geofence.Builder().apply {
+            setRequestId(GEOFENCE_REQ_IDS_START.toString())
+            setCircularRegion(
+                steps.first().startLocation.lat.toDouble(),
+                steps.first().startLocation.lng.toDouble(),
+                10F
+            )
+            setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
+            setExpirationDuration(Geofence.NEVER_EXPIRE)
+
+            res += build().also { Log.i(TAG,"Adding geofence: $it") }
+        }
+
+        Geofence.Builder().apply {
+            setRequestId(GEOFENCE_REQ_IDS_START.toString())
+            setCircularRegion(
+                steps.last().endLocation.lat.toDouble(),
+                steps.last().endLocation.lng.toDouble(),
+                10F
+            )
+            setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
+            setExpirationDuration(Geofence.NEVER_EXPIRE)
+
+            res += build().also { Log.i(TAG,"Adding geofence: $it") }
+        }
+
+        return res
+//        steps.map { step ->
+//        }
+    }
+
+
     fun updateSteps(v: View){
         val nav = DirApi(this)
         nav.updateSteps()
-
-
     }
+
+    fun setupGeofences(steps: List<DirApi.Step>){
+        val geofences = buildGeofences(steps)
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            Log.e(TAG,"No permission granted")
+        }
+        geofencingClient
+            .addGeofences(buildGeofencingRequest(geofences), geofencePendingIntent)
+            .addOnSuccessListener {
+                Log.i(TAG,"Successfuly submitted geofences")
+            }
+            .addOnFailureListener {
+                Log.e(TAG,"Error while submitting geofences: ${it.message}")
+            }
+    }
+
+    private fun buildGeofencingRequest(geofences: List<Geofence>): GeofencingRequest {
+        return GeofencingRequest.Builder()
+            .setInitialTrigger(0)
+            .addGeofences(geofences)
+            .build()
+    }
+
 
     private fun findCharacteristic(gatt:BluetoothGatt?):BluetoothGattCharacteristic?{
         val found = gatt!!.services.let {

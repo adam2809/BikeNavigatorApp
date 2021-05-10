@@ -14,7 +14,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 
-class DirApi(context:Context) {
+class DirApi(context:MainActivity) {
     private companion object{
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
         const val TAG = "Navigator";
@@ -38,7 +38,7 @@ class DirApi(context:Context) {
     ){
     }
     private val mapper = jacksonObjectMapper()
-    private var steps = emptyList<Step>()
+    var steps = emptyList<Step>()
     private val queue: RequestQueue = Volley.newRequestQueue(context)
 
     private fun JSONObject.getNonEmptyArrayElement(key:String):JSONArray?{
@@ -71,6 +71,8 @@ class DirApi(context:Context) {
 
             Log.i(REQ_TAG,"Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG,"New steps: $steps")
+
+            context.setupGeofences(steps)
         },
         { error ->
             error.networkResponse.let {
