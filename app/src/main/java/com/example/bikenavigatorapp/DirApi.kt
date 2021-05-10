@@ -80,7 +80,7 @@ class DirApi(context:Context) {
     )
 
     private fun getUrlParams():String{
-        return "origin=52.204184,21.019111&destination=52.189799,21.003632&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
+        return "origin=52.204132,21.019025&destination=52.197967,21.024323&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
     }
 
     fun updateSteps(){

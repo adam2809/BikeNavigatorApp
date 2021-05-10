@@ -214,6 +214,8 @@ class MainActivity : AppCompatActivity() {
     fun updateSteps(v: View){
         val nav = DirApi(this)
         nav.updateSteps()
+
+
     }
 
     private fun findCharacteristic(gatt:BluetoothGatt?):BluetoothGattCharacteristic?{
