@@ -47,7 +47,6 @@ class DirApi(context:MainActivity) {
             Log.w(REQ_TAG, "Array $key is  empty")
             return null
         }
-        Log.d(REQ_TAG, "Array $key sdnjansdnansdajk")
         return arr
     }
 

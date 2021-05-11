@@ -3,7 +3,6 @@ package com.example.bikenavigatorapp;
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import com.android.raywenderlich.remindmethere.GeofenceTransitionsJobIntentService
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
