@@ -22,7 +22,7 @@ class DirApi(context:MainActivity) {
     }
 
     data class TextVal(val text:String,val value:Int)
-    data class Location(val lat:String,val lng:Int)
+    data class Location(val lat:Double,val lng:Double)
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Step(
         val distance:TextVal,

@@ -16,6 +16,7 @@ import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import com.example.bikenavigatorapp.geofencing.GeofenceBroadcastReceiver
 import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
@@ -231,9 +232,9 @@ class MainActivity : AppCompatActivity() {
         Geofence.Builder().apply {
             setRequestId(GEOFENCE_REQ_IDS_START.toString())
             setCircularRegion(
-                steps.first().startLocation.lat.toDouble(),
-                steps.first().startLocation.lng.toDouble(),
-                10F
+                steps.first().startLocation.lat,
+                steps.first().startLocation.lng,
+                50F
             )
             setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
             setExpirationDuration(Geofence.NEVER_EXPIRE)
@@ -244,9 +245,9 @@ class MainActivity : AppCompatActivity() {
         Geofence.Builder().apply {
             setRequestId(GEOFENCE_REQ_IDS_START.toString())
             setCircularRegion(
-                steps.last().endLocation.lat.toDouble(),
-                steps.last().endLocation.lng.toDouble(),
-                10F
+                steps.last().endLocation.lat,
+                steps.last().endLocation.lng,
+                50F
             )
             setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
             setExpirationDuration(Geofence.NEVER_EXPIRE)

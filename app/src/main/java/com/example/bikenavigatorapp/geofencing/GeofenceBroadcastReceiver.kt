@@ -1,4 +1,4 @@
-package com.example.bikenavigatorapp;
+package com.example.bikenavigatorapp.geofencing;
 
 import android.content.BroadcastReceiver
 import android.content.Context

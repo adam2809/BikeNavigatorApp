@@ -1,9 +1,9 @@
+package com.example.bikenavigatorapp.geofencing
+
 import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.JobIntentService
-import com.example.bikenavigatorapp.GeofenceErrorMessages
-import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingEvent
 
 class GeofenceTransitionsJobIntentService : JobIntentService() {

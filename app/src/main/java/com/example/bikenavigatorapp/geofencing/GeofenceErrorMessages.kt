@@ -1,6 +1,7 @@
-package com.example.bikenavigatorapp
+package com.example.bikenavigatorapp.geofencing
 
 import android.content.Context
+import com.example.bikenavigatorapp.R
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.GeofenceStatusCodes
 
