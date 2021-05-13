@@ -22,7 +22,7 @@
             android:enabled="true"
             android:exported="true" />
         <service
-            android:name=".geofencing.GeofenceTransitionsJobIntentService"
+            android:name=".MainActivity$GeofenceTransitionsJobIntentService"
             android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE" />
 

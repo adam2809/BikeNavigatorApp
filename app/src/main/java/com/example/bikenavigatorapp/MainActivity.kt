@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.bluetooth.*
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.*
@@ -11,12 +12,14 @@ import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.app.JobIntentService
 import androidx.core.content.ContextCompat
 import com.example.bikenavigatorapp.geofencing.GeofenceBroadcastReceiver
+import com.example.bikenavigatorapp.geofencing.GeofenceErrorMessages
 import com.google.android.gms.location.Geofence
+import com.google.android.gms.location.GeofencingEvent
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
-
 
 class MainActivity : AppCompatActivity() {
     private val geofencingClient by lazy { LocationServices.getGeofencingClient(this) }
@@ -29,6 +32,7 @@ class MainActivity : AppCompatActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
+    val dirs by lazy { DirApi(this) }
 
     private val dirDisplay = BleDirDisplay(this)
 
@@ -36,7 +40,7 @@ class MainActivity : AppCompatActivity() {
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
     val LOCATION_PERMISSION_REQUEST_CODE = 2
     private val GEOFENCE_REQ_IDS_START = 100
-    private val GEOFENCE_RADIUS = 10F
+    private val GEOFENCE_RADIUS = 20F
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -140,8 +144,7 @@ class MainActivity : AppCompatActivity() {
 
 
     fun updateSteps(v: View){
-        val nav = DirApi(this)
-        nav.updateSteps()
+        dirs.updateSteps()
     }
 
     fun setupGeofences(steps: List<DirApi.Step>){
@@ -155,7 +158,7 @@ class MainActivity : AppCompatActivity() {
                 Log.i(TAG, "Successfully submitted geofences")
             }
             .addOnFailureListener {
-                Log.e(TAG,"Error while submitting geofences: ${it.message}")
+                Log.e(TAG, "Error while submitting geofences: ${it.message}")
             }
     }
 
@@ -164,5 +167,47 @@ class MainActivity : AppCompatActivity() {
             .setInitialTrigger(0)
             .addGeofences(geofences)
             .build()
+    }
+
+    class GeofenceTransitionsJobIntentService : JobIntentService() {
+        companion object {
+            const val TAG = "JobIntentService";
+            private const val JOB_ID = 573
+
+            fun enqueueWork(context: Context, intent: Intent) {
+                enqueueWork(
+                    context,
+                    GeofenceTransitionsJobIntentService::class.java, JOB_ID, intent
+                )
+            }
+        }
+
+        override fun onHandleWork(intent: Intent) {
+            val geofencingEvent = GeofencingEvent.fromIntent(intent)
+            if (geofencingEvent.hasError()) {
+                val errorMessage = GeofenceErrorMessages.getErrorString(
+                    this,
+                    geofencingEvent.errorCode
+                )
+                Log.e(TAG, errorMessage)
+                return
+            }
+
+            Log.i(
+                TAG,
+                "Handling ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition})"
+            )
+            Log.d(
+                TAG,
+                "Geofences that triggered  size: ${geofencingEvent.triggeringGeofences.size}"
+            )
+
+            val geofence = geofencingEvent.triggeringGeofences.first()
+            val reqId = geofence.requestId.toInt()
+//            val step =
+            if (reqId % 2 == 0) {
+
+            }
+        }
     }
 }
