@@ -36,6 +36,7 @@ class MainActivity : AppCompatActivity() {
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
     val LOCATION_PERMISSION_REQUEST_CODE = 2
     private val GEOFENCE_REQ_IDS_START = 100
+    private val GEOFENCE_RADIUS = 10F
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -106,37 +107,35 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun buildGeofences(steps:List<DirApi.Step>):List<Geofence>{
-        val res = mutableListOf<Geofence>()
-        Geofence.Builder().apply {
-            setRequestId(GEOFENCE_REQ_IDS_START.toString())
-            setCircularRegion(
-                steps.first().startLocation.lat,
-                steps.first().startLocation.lng,
-                50F
-            )
-            setTransitionTypes(Geofence.GEOFENCE_TRANSITION_ENTER)
-            setExpirationDuration(Geofence.NEVER_EXPIRE)
-
-            res += build().also { Log.i(TAG,"Adding geofence: $it") }
+    private fun generateGeofences(steps: List<DirApi.Step>): List<Geofence> {
+        var i = 0
+        return steps.flatMap { step ->
+            listOf(
+                buildGeofence(
+                    step.startLocation,
+                    GEOFENCE_REQ_IDS_START + i,
+                    Geofence.GEOFENCE_TRANSITION_ENTER
+                ).also { Log.i(TAG, "Adding geofence: $it") },
+                buildGeofence(
+                    step.endLocation,
+                    GEOFENCE_REQ_IDS_START + i + 1,
+                    Geofence.GEOFENCE_TRANSITION_EXIT
+                ).also { Log.i(TAG, "Adding geofence: $it") }
+            ).also { i += 2 }
         }
+    }
 
-        Geofence.Builder().apply {
-            setRequestId(GEOFENCE_REQ_IDS_START.toString() + 1)
+    private fun buildGeofence(loc: DirApi.Location, reqId: Int, transType: Int): Geofence {
+        return Geofence.Builder().apply {
+            setRequestId(reqId.toString())
             setCircularRegion(
-                steps.last().endLocation.lat,
-                steps.last().endLocation.lng,
-                50F
+                loc.lat,
+                loc.lng,
+                GEOFENCE_RADIUS
             )
-            setTransitionTypes(Geofence.GEOFENCE_TRANSITION_EXIT)
+            setTransitionTypes(transType)
             setExpirationDuration(Geofence.NEVER_EXPIRE)
-
-            res += build().also { Log.i(TAG,"Adding geofence: $it") }
-        }
-
-        return res
-//        steps.map { step ->
-//        }
+        }.build()
     }
 
 
@@ -146,7 +145,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun setupGeofences(steps: List<DirApi.Step>){
-        val geofences = buildGeofences(steps)
+        val geofences = generateGeofences(steps)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG,"No permission granted")
         }
