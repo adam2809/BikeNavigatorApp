@@ -18,13 +18,9 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.BikeNavigatorApp">
         <receiver
-            android:name=".geofencing.GeofenceBroadcastReceiver"
+            android:name=".MainActivity$GeofenceBroadcastReceiver"
             android:enabled="true"
             android:exported="true" />
-        <service
-            android:name=".MainActivity$GeofenceTransitionsJobIntentService"
-            android:exported="true"
-            android:permission="android.permission.BIND_JOB_SERVICE" />
 
         <activity android:name=".MainActivity">
             <intent-filter>

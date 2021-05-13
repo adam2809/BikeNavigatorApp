@@ -7,6 +7,6 @@ import com.example.bikenavigatorapp.MainActivity
 
 class GeofenceBroadcastReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        MainActivity.GeofenceTransitionsJobIntentService.enqueueWork(context, intent)
+//        MainActivity.GeofenceTransitionsJobIntentService.enqueueWork(context, intent)
     }
 }

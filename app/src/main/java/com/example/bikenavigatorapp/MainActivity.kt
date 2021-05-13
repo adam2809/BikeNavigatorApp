@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.bluetooth.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -169,24 +170,14 @@ class MainActivity : AppCompatActivity() {
             .build()
     }
 
-    class GeofenceTransitionsJobIntentService : JobIntentService() {
-        companion object {
-            const val TAG = "JobIntentService";
-            private const val JOB_ID = 573
+    class GeofenceBroadcastReceiver : BroadcastReceiver() {
 
-            fun enqueueWork(context: Context, intent: Intent) {
-                enqueueWork(
-                    context,
-                    GeofenceTransitionsJobIntentService::class.java, JOB_ID, intent
-                )
-            }
-        }
-
-        override fun onHandleWork(intent: Intent) {
+        val TAG = "GeofenceBcReceiver";
+        override fun onReceive(context: Context, intent: Intent) {
             val geofencingEvent = GeofencingEvent.fromIntent(intent)
             if (geofencingEvent.hasError()) {
                 val errorMessage = GeofenceErrorMessages.getErrorString(
-                    this,
+                    context,
                     geofencingEvent.errorCode
                 )
                 Log.e(TAG, errorMessage)
@@ -202,12 +193,15 @@ class MainActivity : AppCompatActivity() {
                 "Geofences that triggered  size: ${geofencingEvent.triggeringGeofences.size}"
             )
 
+            (context as MainActivity).dirDisplay.straight()
+
             val geofence = geofencingEvent.triggeringGeofences.first()
             val reqId = geofence.requestId.toInt()
 //            val step =
-            if (reqId % 2 == 0) {
-
-            }
+//            if (reqId % 2 == 0) {
+//
+//            }
+//            dirDisplay.
         }
     }
 }
