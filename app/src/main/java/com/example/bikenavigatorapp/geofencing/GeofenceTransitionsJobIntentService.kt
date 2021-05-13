@@ -28,6 +28,6 @@ class GeofenceTransitionsJobIntentService : JobIntentService() {
             return
         }
 
-       Log.i(TAG,"This ${geofencingEvent.triggeringLocation} (${geofencingEvent.errorCode}) should be handled here")
+       Log.i(TAG,"This ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition}) should be handled here")
     }
 }

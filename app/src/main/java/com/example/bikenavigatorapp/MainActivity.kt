@@ -39,7 +39,8 @@ class MainActivity : AppCompatActivity() {
             this,
             0,
             intent,
-            PendingIntent.FLAG_UPDATE_CURRENT)
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
     }
 
     private var scanning = false
@@ -243,7 +244,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         Geofence.Builder().apply {
-            setRequestId(GEOFENCE_REQ_IDS_START.toString())
+            setRequestId(GEOFENCE_REQ_IDS_START.toString() + 1)
             setCircularRegion(
                 steps.last().endLocation.lat,
                 steps.last().endLocation.lng,
