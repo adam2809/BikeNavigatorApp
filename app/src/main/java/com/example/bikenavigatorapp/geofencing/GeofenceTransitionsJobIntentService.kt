@@ -23,17 +23,22 @@ class GeofenceTransitionsJobIntentService : JobIntentService() {
     override fun onHandleWork(intent: Intent) {
         val geofencingEvent = GeofencingEvent.fromIntent(intent)
         if (geofencingEvent.hasError()) {
-            val errorMessage = GeofenceErrorMessages.getErrorString(this,
-                geofencingEvent.errorCode)
+            val errorMessage = GeofenceErrorMessages.getErrorString(
+                this,
+                geofencingEvent.errorCode
+            )
             Log.e(TAG, errorMessage)
             return
         }
 
-       Log.i(TAG,"This ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition}) should be handled here")
-        Intent().also {
-            it.action = "DISPLAY_DIR_CHANGE"
-            it.putExtra("dir", BleDirDisplay.Dir.STRAIGHT.toString())
-            sendBroadcast(intent)
-        }
+        Log.i(
+            TAG,
+            "This ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition}) should be handled here"
+        )
+//        Intent().also {
+//            it.action = "DISPLAY_DIR_CHANGE"
+//            it.putExtra("dir", BleDirDisplay.Dir.STRAIGHT.toString())
+//            sendBroadcast(intent)
+//        }
     }
 }

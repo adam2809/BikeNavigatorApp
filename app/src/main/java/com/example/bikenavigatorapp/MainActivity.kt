@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
     val LOCATION_PERMISSION_REQUEST_CODE = 2
     private val GEOFENCE_REQ_IDS_START = 100
-    private val GEOFENCE_RADIUS = 10F
+    private val GEOFENCE_RADIUS = 30F
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -160,9 +160,21 @@ class MainActivity : AppCompatActivity() {
     }
 
 
-    fun updateSteps(v: View){
+    fun updateSteps(v: View) {
         val nav = DirApi(this)
-        nav.updateSteps()
+//        nav.updateSteps()
+        setupGeofences(
+            listOf(
+                DirApi.Step(
+                    DirApi.TextVal("dsa", 3),
+                    DirApi.TextVal("dsa", 3),
+                    DirApi.Location(52.190714, 21.003874),
+                    DirApi.Location(52.190714, 21.003874),
+                    "hateemel",
+                    "BICYCLING"
+                )
+            )
+        )
     }
 
     fun setupGeofences(steps: List<DirApi.Step>){
