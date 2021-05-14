@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.util.Log
 import androidx.core.app.JobIntentService
+import com.example.bikenavigatorapp.BleDirDisplay
 import com.google.android.gms.location.GeofencingEvent
 
 class GeofenceTransitionsJobIntentService : JobIntentService() {
@@ -29,5 +30,10 @@ class GeofenceTransitionsJobIntentService : JobIntentService() {
         }
 
        Log.i(TAG,"This ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition}) should be handled here")
+        Intent().also {
+            it.action = "DISPLAY_DIR_CHANGE"
+            it.putExtra("dir", BleDirDisplay.Dir.STRAIGHT.toString())
+            sendBroadcast(intent)
+        }
     }
 }

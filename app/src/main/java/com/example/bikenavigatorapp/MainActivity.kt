@@ -4,7 +4,10 @@ import android.Manifest
 import android.app.Activity
 import android.app.PendingIntent
 import android.bluetooth.*
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.*
 import android.util.Log
@@ -29,6 +32,22 @@ class MainActivity : AppCompatActivity() {
             PendingIntent.FLAG_UPDATE_CURRENT
         )
     }
+    val displayChangeBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val dir = when (intent.extras?.get("dir") as String) {
+                BleDirDisplay.Dir.NO_DIR.toString() -> BleDirDisplay.Dir.NO_DIR
+                BleDirDisplay.Dir.LEFT.toString() -> BleDirDisplay.Dir.LEFT
+                BleDirDisplay.Dir.RIGHT.toString() -> BleDirDisplay.Dir.RIGHT
+                BleDirDisplay.Dir.STRAIGHT.toString() -> BleDirDisplay.Dir.STRAIGHT
+                else -> {
+                    Log.w(TAG, "Received intent with invalid direction")
+                    return
+                }
+            }
+            Log.i(TAG,"Trying to write $dir to display")
+            dirDisplay.writeDir(dir)
+        }
+    }
 
     private val dirDisplay = BleDirDisplay(this)
 
@@ -42,6 +61,8 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
     }
 
     override fun onResume() {
@@ -149,6 +170,16 @@ class MainActivity : AppCompatActivity() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
             Log.e(TAG,"No permission granted")
         }
+
+        geofencingClient.removeGeofences(geofencePendingIntent)?.run {
+            addOnSuccessListener {
+                Log.i(TAG, "Successfully removed geofences")
+            }
+            addOnFailureListener {
+                Log.i(TAG, "Failed to remove geofences")
+            }
+        }
+
         geofencingClient
             .addGeofences(buildGeofencingRequest(geofences), geofencePendingIntent)
             .addOnSuccessListener {
