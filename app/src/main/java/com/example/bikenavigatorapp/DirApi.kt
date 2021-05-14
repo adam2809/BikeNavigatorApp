@@ -70,8 +70,6 @@ class DirApi(context:MainActivity) {
 
             Log.i(REQ_TAG,"Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG,"New steps: $steps")
-
-            context.setupGeofences(steps)
         },
         { error ->
             error.networkResponse.let {
