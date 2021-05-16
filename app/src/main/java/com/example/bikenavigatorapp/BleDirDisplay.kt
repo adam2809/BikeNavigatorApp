@@ -138,33 +138,36 @@ class BleDirDisplay(private val context: MainActivity) {
         return displayCharacteristic != null // && bluetoothManager?.getConnectionState(bluetoothGatt?.device) == BluetoothProfile.STATE_CONNECTED
     }
 
-    fun writeDir(dir: Dir) {
+    fun writeDir(dir: Dir, meters: Int) {
         if (!isBtDeviceReadyForAccess()) {
             Log.w(TAG, "Attempting to access device which is not ready")
             return
         }
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            displayCharacteristic?.value = ByteArray(1) { dir.ordinal.toByte() }
+            displayCharacteristic?.value = ByteArray(2).apply {
+                this[0] = dir.ordinal.toByte()
+                this[1] = meters.toByte()
+            }
             gatt.writeCharacteristic(displayCharacteristic)
         } ?: Log.e(TAG, "Unable to write straight")
     }
 
     fun straight() {
-        writeDir(Dir.STRAIGHT)
+        writeDir(Dir.STRAIGHT, 100)
     }
 
     fun left() {
-        writeDir(Dir.LEFT)
+        writeDir(Dir.LEFT, 15)
 
     }
 
     fun right() {
-        writeDir(Dir.RIGHT)
+        writeDir(Dir.RIGHT, 32)
     }
 
     fun noDir() {
-        writeDir(Dir.NO_DIR)
+        writeDir(Dir.NO_DIR, 40)
     }
 
     fun isBtEnabled(): Boolean = bluetoothAdapter.isEnabled

@@ -87,7 +87,7 @@ class Navigator(private val context: MainActivity) {
         }
 
         newDir?.let {
-            context.dirDisplay.writeDir(it)
+            context.dirDisplay.writeDir(it, 30)
         }
 
         prevWaypoints = Pair(starts, ends)

@@ -22,23 +22,6 @@ import com.google.android.gms.location.LocationServices
 
 
 class MainActivity : AppCompatActivity() {
-    private val displayChangeBroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val dir = when (intent.extras?.get("dir") as String) {
-                BleDirDisplay.Dir.NO_DIR.toString() -> BleDirDisplay.Dir.NO_DIR
-                BleDirDisplay.Dir.LEFT.toString() -> BleDirDisplay.Dir.LEFT
-                BleDirDisplay.Dir.RIGHT.toString() -> BleDirDisplay.Dir.RIGHT
-                BleDirDisplay.Dir.STRAIGHT.toString() -> BleDirDisplay.Dir.STRAIGHT
-                else -> {
-                    Log.w(TAG, "Received intent with invalid direction")
-                    return
-                }
-            }
-            Log.i(TAG, "Trying to write $dir to display")
-            dirDisplay.writeDir(dir)
-        }
-    }
-
     private val locationCb by lazy {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult?) {
@@ -65,8 +48,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-
-        registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
     }
 
     @SuppressLint("MissingPermission")
