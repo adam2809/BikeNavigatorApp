@@ -42,19 +42,16 @@ class MainActivity : AppCompatActivity() {
     private val locationCb by lazy {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult?) {
-                locationResult.let {
-                    if (it != null) {
-                        Log.i(TAG, "Got location: $locationResult")
-                        nav.location = it.locations.first()
-                    } else {
-                        Log.w(TAG, "Location result is null")
+                locationResult?.let { res ->
+                    nav.location = res.locations.firstOrNull()?.also {
+                        Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
                     }
-                }
+                } ?: Log.w(TAG, "Location result is null")
             }
         }
     }
 
-    private val dirDisplay = BleDirDisplay(this)
+    val dirDisplay = BleDirDisplay(this)
     val dirs by lazy { DirApi(this) }
     private val nav by lazy { Navigator(this) }
     private val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
