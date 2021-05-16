@@ -2,7 +2,6 @@ package com.example.bikenavigatorapp
 
 import android.Manifest
 import android.app.Activity
-import android.app.PendingIntent
 import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -14,25 +13,10 @@ import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
-import com.example.bikenavigatorapp.geofencing.GeofenceBroadcastReceiver
-import com.google.android.gms.location.Geofence
-import com.google.android.gms.location.GeofencingRequest
-import com.google.android.gms.location.LocationServices
 
 
 class MainActivity : AppCompatActivity() {
-    private val geofencingClient by lazy { LocationServices.getGeofencingClient(this) }
-    private val geofencePendingIntent: PendingIntent by lazy {
-        val intent = Intent(this, GeofenceBroadcastReceiver::class.java)
-        PendingIntent.getBroadcast(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT
-        )
-    }
-    val displayChangeBroadcastReceiver = object : BroadcastReceiver() {
+    private val displayChangeBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val dir = when (intent.extras?.get("dir") as String) {
                 BleDirDisplay.Dir.NO_DIR.toString() -> BleDirDisplay.Dir.NO_DIR
@@ -50,12 +34,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val dirDisplay = BleDirDisplay(this)
+    private val dirs by lazy { DirApi(this) }
 
     private val TAG = "MainActivity";
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
     val LOCATION_PERMISSION_REQUEST_CODE = 2
-    private val GEOFENCE_REQ_IDS_START = 100
-    private val GEOFENCE_RADIUS = 30F
 
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -125,5 +108,9 @@ class MainActivity : AppCompatActivity() {
 
     fun right(v: View) {
         dirDisplay.right()
+    }
+
+    fun updateSteps(v: View) {
+        dirs.updateSteps()
     }
 }
