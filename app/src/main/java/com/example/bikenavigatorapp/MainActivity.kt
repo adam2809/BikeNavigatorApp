@@ -45,6 +45,7 @@ class MainActivity : AppCompatActivity() {
                 locationResult.let {
                     if (it != null) {
                         Log.i(TAG, "Got location: $locationResult")
+                        nav.location = it.locations.first()
                     } else {
                         Log.w(TAG, "Location result is null")
                     }
@@ -54,7 +55,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     private val dirDisplay = BleDirDisplay(this)
-    private val dirs by lazy { DirApi(this) }
+    val dirs by lazy { DirApi(this) }
+    private val nav by lazy { Navigator(this) }
     private val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
     private val TAG = "MainActivity";
@@ -67,6 +69,11 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates() {
         if (!hasLocationPermissions()) {
             requestLocationPermissions()
             return
@@ -84,8 +91,10 @@ class MainActivity : AppCompatActivity() {
         }.addOnFailureListener {
             Log.e(TAG, "Location updates request failed")
         }
+    }
 
-        registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
+    private fun stopLocationUpdates() {
+        locClient.removeLocationUpdates(locationCb)
     }
 
     override fun onResume() {
@@ -164,5 +173,6 @@ class MainActivity : AppCompatActivity() {
 
     fun updateSteps(v: View) {
         dirs.updateSteps()
+        startLocationUpdates()
     }
 }
