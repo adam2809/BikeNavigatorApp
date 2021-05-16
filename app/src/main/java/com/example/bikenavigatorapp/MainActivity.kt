@@ -1,6 +1,7 @@
 package com.example.bikenavigatorapp
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.*
 import android.content.BroadcastReceiver
@@ -14,6 +15,9 @@ import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 
 
@@ -30,8 +34,22 @@ class MainActivity : AppCompatActivity() {
                     return
                 }
             }
-            Log.i(TAG,"Trying to write $dir to display")
+            Log.i(TAG, "Trying to write $dir to display")
             dirDisplay.writeDir(dir)
+        }
+    }
+
+    private val locationCb by lazy {
+        object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult?) {
+                locationResult.let {
+                    if (it != null) {
+                        Log.i(TAG, "Got location: $locationResult")
+                    } else {
+                        Log.w(TAG, "Location result is null")
+                    }
+                }
+            }
         }
     }
 
@@ -44,9 +62,28 @@ class MainActivity : AppCompatActivity() {
     val LOCATION_PERMISSION_REQUEST_CODE = 2
 
 
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+
+        locClient.requestLocationUpdates(
+            LocationRequest.create().apply {
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                interval = 2000
+            },
+            locationCb,
+            Looper.getMainLooper()
+        ).addOnSuccessListener {
+            Log.i(TAG, "Location updates request successful")
+        }.addOnFailureListener {
+            Log.e(TAG, "Location updates request failed")
+        }
 
         registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
     }
@@ -126,14 +163,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun updateSteps(v: View) {
-//        dirs.updateSteps()
-        if (!hasLocationPermissions()) {
-            requestLocationPermissions()
-            return
-        }
-        locClient.lastLocation
-            .addOnSuccessListener { location: Location? ->
-                Log.i(TAG, "Got last known location: $location")
-            }
+        dirs.updateSteps()
     }
 }
