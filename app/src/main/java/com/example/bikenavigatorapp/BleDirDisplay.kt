@@ -17,7 +17,7 @@ class BleDirDisplay(private val context: MainActivity) {
     private companion object {
         const val TAG = "BleDirDisplay"
         const val SCAN_PERIOD: Long = 2000;
-        const val DEVICE_ADDRESS = "7C:9E:BD:06:E4:AA";
+        const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE";
         const val DISPLAY_SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
         const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
     }
@@ -68,12 +68,8 @@ class BleDirDisplay(private val context: MainActivity) {
 
 
     fun initiateScan() {
-        if (!context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                context,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                context.LOCATION_PERMISSION_REQUEST_CODE
-            )
+        if (!context.hasLocationPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.requestLocationPermissions()
         }
         scanLeDevice { res ->
             bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)

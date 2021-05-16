@@ -25,16 +25,17 @@ class DirApi(context:MainActivity) {
     data class Location(val lat:Double,val lng:Double)
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Step(
-        val distance:TextVal,
-        val duration:TextVal,
+        val distance: TextVal,
+        val duration: TextVal,
+        val maneuver: String?,
         @JsonProperty("start_location")
-        val startLocation:Location,
+        val startLocation: Location,
         @JsonProperty("end_location")
-        val endLocation:Location,
+        val endLocation: Location,
         @JsonProperty("html_instructions")
-        val htmlInstructions:String,
+        val htmlInstructions: String,
         @JsonProperty("travel_mode")
-        val travelMode:String
+        val travelMode: String
     ){
     }
     private val mapper = jacksonObjectMapper()
@@ -70,8 +71,6 @@ class DirApi(context:MainActivity) {
 
             Log.i(REQ_TAG,"Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG,"New steps: $steps")
-
-            context.setupGeofences(steps)
         },
         { error ->
             error.networkResponse.let {

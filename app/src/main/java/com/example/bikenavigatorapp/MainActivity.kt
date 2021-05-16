@@ -1,52 +1,97 @@
 package com.example.bikenavigatorapp
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.PendingIntent
 import android.bluetooth.*
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.*
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.core.app.JobIntentService
-import androidx.core.content.ContextCompat
-import com.example.bikenavigatorapp.geofencing.GeofenceBroadcastReceiver
-import com.example.bikenavigatorapp.geofencing.GeofenceErrorMessages
-import com.google.android.gms.location.Geofence
-import com.google.android.gms.location.GeofencingEvent
-import com.google.android.gms.location.GeofencingRequest
+import com.google.android.gms.location.LocationCallback
+import com.google.android.gms.location.LocationRequest
+import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 
-class MainActivity : AppCompatActivity() {
-    private val geofencingClient by lazy { LocationServices.getGeofencingClient(this) }
-    private val geofencePendingIntent: PendingIntent by lazy {
-        val intent = Intent(this, GeofenceBroadcastReceiver::class.java)
-        PendingIntent.getBroadcast(
-            this,
-            0,
-            intent,
-            PendingIntent.FLAG_UPDATE_CURRENT
-        )
-    }
-    val dirs by lazy { DirApi(this) }
 
-    private val dirDisplay = BleDirDisplay(this)
+class MainActivity : AppCompatActivity() {
+    private val displayChangeBroadcastReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val dir = when (intent.extras?.get("dir") as String) {
+                BleDirDisplay.Dir.NO_DIR.toString() -> BleDirDisplay.Dir.NO_DIR
+                BleDirDisplay.Dir.LEFT.toString() -> BleDirDisplay.Dir.LEFT
+                BleDirDisplay.Dir.RIGHT.toString() -> BleDirDisplay.Dir.RIGHT
+                BleDirDisplay.Dir.STRAIGHT.toString() -> BleDirDisplay.Dir.STRAIGHT
+                else -> {
+                    Log.w(TAG, "Received intent with invalid direction")
+                    return
+                }
+            }
+            Log.i(TAG, "Trying to write $dir to display")
+            dirDisplay.writeDir(dir)
+        }
+    }
+
+    private val locationCb by lazy {
+        object : LocationCallback() {
+            override fun onLocationResult(locationResult: LocationResult?) {
+                locationResult?.let { res ->
+                    nav.location = res.locations.firstOrNull()?.also {
+                        Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
+                    }
+                } ?: Log.w(TAG, "Location result is null")
+            }
+        }
+    }
+
+    val dirDisplay = BleDirDisplay(this)
+    val dirs by lazy { DirApi(this) }
+    private val nav by lazy { Navigator(this) }
+    private val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
     private val TAG = "MainActivity";
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
     val LOCATION_PERMISSION_REQUEST_CODE = 2
-    private val GEOFENCE_REQ_IDS_START = 100
-    private val GEOFENCE_RADIUS = 20F
 
 
+    @SuppressLint("MissingPermission")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        registerReceiver(displayChangeBroadcastReceiver, IntentFilter("DISPLAY_DIR_CHANGE"));
+    }
+
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates() {
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+
+        locClient.requestLocationUpdates(
+            LocationRequest.create().apply {
+                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+                interval = 2000
+            },
+            locationCb,
+            Looper.getMainLooper()
+        ).addOnSuccessListener {
+            Log.i(TAG, "Location updates request successful")
+        }.addOnFailureListener {
+            Log.e(TAG, "Location updates request failed")
+        }
+    }
+
+    private fun stopLocationUpdates() {
+        locClient.removeLocationUpdates(locationCb)
     }
 
     override fun onResume() {
@@ -72,6 +117,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun hasLocationPermissions(): Boolean {
+        return hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    fun requestLocationPermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ),
+            LOCATION_PERMISSION_REQUEST_CODE
+        )
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -81,13 +141,10 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.firstOrNull() == PackageManager.PERMISSION_DENIED) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                        LOCATION_PERMISSION_REQUEST_CODE
-                    )
+                    Log.w(TAG, "Location permissions request failed requesting again")
+                    requestLocationPermissions()
                 } else {
-                    dirDisplay.initiateScan()
+                    Log.i(TAG, "Successfuly granted location permissions")
                 }
             }
         }
@@ -111,97 +168,8 @@ class MainActivity : AppCompatActivity() {
         dirDisplay.right()
     }
 
-
-    private fun generateGeofences(steps: List<DirApi.Step>): List<Geofence> {
-        var i = 0
-        return steps.flatMap { step ->
-            listOf(
-                buildGeofence(
-                    step.startLocation,
-                    GEOFENCE_REQ_IDS_START + i,
-                    Geofence.GEOFENCE_TRANSITION_ENTER
-                ).also { Log.i(TAG, "Adding geofence: $it") },
-                buildGeofence(
-                    step.endLocation,
-                    GEOFENCE_REQ_IDS_START + i + 1,
-                    Geofence.GEOFENCE_TRANSITION_EXIT
-                ).also { Log.i(TAG, "Adding geofence: $it") }
-            ).also { i += 2 }
-        }
-    }
-
-    private fun buildGeofence(loc: DirApi.Location, reqId: Int, transType: Int): Geofence {
-        return Geofence.Builder().apply {
-            setRequestId(reqId.toString())
-            setCircularRegion(
-                loc.lat,
-                loc.lng,
-                GEOFENCE_RADIUS
-            )
-            setTransitionTypes(transType)
-            setExpirationDuration(Geofence.NEVER_EXPIRE)
-        }.build()
-    }
-
-
-    fun updateSteps(v: View){
+    fun updateSteps(v: View) {
         dirs.updateSteps()
-    }
-
-    fun setupGeofences(steps: List<DirApi.Step>){
-        val geofences = generateGeofences(steps)
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            Log.e(TAG,"No permission granted")
-        }
-        geofencingClient
-            .addGeofences(buildGeofencingRequest(geofences), geofencePendingIntent)
-            .addOnSuccessListener {
-                Log.i(TAG, "Successfully submitted geofences")
-            }
-            .addOnFailureListener {
-                Log.e(TAG, "Error while submitting geofences: ${it.message}")
-            }
-    }
-
-    private fun buildGeofencingRequest(geofences: List<Geofence>): GeofencingRequest {
-        return GeofencingRequest.Builder()
-            .setInitialTrigger(0)
-            .addGeofences(geofences)
-            .build()
-    }
-
-    class GeofenceBroadcastReceiver : BroadcastReceiver() {
-
-        val TAG = "GeofenceBcReceiver";
-        override fun onReceive(context: Context, intent: Intent) {
-            val geofencingEvent = GeofencingEvent.fromIntent(intent)
-            if (geofencingEvent.hasError()) {
-                val errorMessage = GeofenceErrorMessages.getErrorString(
-                    context,
-                    geofencingEvent.errorCode
-                )
-                Log.e(TAG, errorMessage)
-                return
-            }
-
-            Log.i(
-                TAG,
-                "Handling ${geofencingEvent.triggeringLocation.latitude}, ${geofencingEvent.triggeringLocation.longitude} (${geofencingEvent.geofenceTransition})"
-            )
-            Log.d(
-                TAG,
-                "Geofences that triggered  size: ${geofencingEvent.triggeringGeofences.size}"
-            )
-
-            (context as MainActivity).dirDisplay.straight()
-
-            val geofence = geofencingEvent.triggeringGeofences.first()
-            val reqId = geofence.requestId.toInt()
-//            val step =
-//            if (reqId % 2 == 0) {
-//
-//            }
-//            dirDisplay.
-        }
+        startLocationUpdates()
     }
 }
