@@ -68,12 +68,8 @@ class BleDirDisplay(private val context: MainActivity) {
 
 
     fun initiateScan() {
-        if (!context.hasPermission(Manifest.permission.ACCESS_FINE_LOCATION) && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            ActivityCompat.requestPermissions(
-                context,
-                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                context.LOCATION_PERMISSION_REQUEST_CODE
-            )
+        if (!context.hasLocationPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            context.requestLocationPermissions()
         }
         scanLeDevice { res ->
             bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)

@@ -8,11 +8,13 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.*
 import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import com.google.android.gms.location.LocationServices
 
 
 class MainActivity : AppCompatActivity() {
@@ -35,6 +37,7 @@ class MainActivity : AppCompatActivity() {
 
     private val dirDisplay = BleDirDisplay(this)
     private val dirs by lazy { DirApi(this) }
+    private val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
     private val TAG = "MainActivity";
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
@@ -71,6 +74,21 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    fun hasLocationPermissions(): Boolean {
+        return hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+    }
+
+    fun requestLocationPermissions() {
+        ActivityCompat.requestPermissions(
+            this,
+            arrayOf(
+                Manifest.permission.ACCESS_FINE_LOCATION,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ),
+            LOCATION_PERMISSION_REQUEST_CODE
+        )
+    }
+
     override fun onRequestPermissionsResult(
         requestCode: Int,
         permissions: Array<out String>,
@@ -80,13 +98,10 @@ class MainActivity : AppCompatActivity() {
         when (requestCode) {
             LOCATION_PERMISSION_REQUEST_CODE -> {
                 if (grantResults.firstOrNull() == PackageManager.PERMISSION_DENIED) {
-                    ActivityCompat.requestPermissions(
-                        this,
-                        arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
-                        LOCATION_PERMISSION_REQUEST_CODE
-                    )
+                    Log.w(TAG, "Location permissions request failed requesting again")
+                    requestLocationPermissions()
                 } else {
-                    dirDisplay.initiateScan()
+                    Log.i(TAG, "Successfuly granted location permissions")
                 }
             }
         }
@@ -111,6 +126,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun updateSteps(v: View) {
-        dirs.updateSteps()
+//        dirs.updateSteps()
+        if (!hasLocationPermissions()) {
+            requestLocationPermissions()
+            return
+        }
+        locClient.lastLocation
+            .addOnSuccessListener { location: Location? ->
+                Log.i(TAG, "Got last known location: $location")
+            }
     }
 }
