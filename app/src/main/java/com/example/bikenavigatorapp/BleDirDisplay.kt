@@ -22,6 +22,8 @@ class BleDirDisplay(private val context: MainActivity) {
         const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
     }
 
+    data class DirData(val dir: Dir, val meters: Int)
+
     enum class Dir {
         NO_DIR,
         RIGHT,
@@ -38,6 +40,8 @@ class BleDirDisplay(private val context: MainActivity) {
 
     var bluetoothGatt: BluetoothGatt? = null
     var displayCharacteristic: BluetoothGattCharacteristic? = null
+
+    var currDirData: DirData = DirData(Dir.NO_DIR, 0)
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
@@ -138,7 +142,7 @@ class BleDirDisplay(private val context: MainActivity) {
         return displayCharacteristic != null // && bluetoothManager?.getConnectionState(bluetoothGatt?.device) == BluetoothProfile.STATE_CONNECTED
     }
 
-    fun writeDir(dir: Dir, meters: Int) {
+    fun writeDir(dirData: DirData) {
         if (!isBtDeviceReadyForAccess()) {
             Log.w(TAG, "Attempting to access device which is not ready")
             return
@@ -146,28 +150,29 @@ class BleDirDisplay(private val context: MainActivity) {
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             displayCharacteristic?.value = ByteArray(2).apply {
-                this[0] = dir.ordinal.toByte()
-                this[1] = meters.toByte()
+                this[0] = dirData.dir.ordinal.toByte()
+                this[1] = dirData.meters.toByte()
             }
             gatt.writeCharacteristic(displayCharacteristic)
-        } ?: Log.e(TAG, "Unable to write straight")
+            currDirData = dirData
+        } ?: Log.e(TAG, "Unable to write $dirData")
     }
 
     fun straight() {
-        writeDir(Dir.STRAIGHT, 100)
+        writeDir(DirData(Dir.STRAIGHT, 100))
     }
 
     fun left() {
-        writeDir(Dir.LEFT, 15)
+        writeDir(DirData(Dir.LEFT, 15))
 
     }
 
     fun right() {
-        writeDir(Dir.RIGHT, 32)
+        writeDir(DirData(Dir.RIGHT, 32))
     }
 
     fun noDir() {
-        writeDir(Dir.NO_DIR, 40)
+        writeDir(DirData(Dir.NO_DIR, 40))
     }
 
     fun isBtEnabled(): Boolean = bluetoothAdapter.isEnabled

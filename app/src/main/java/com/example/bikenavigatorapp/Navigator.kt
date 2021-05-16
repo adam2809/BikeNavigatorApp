@@ -38,6 +38,7 @@ class Navigator(private val context: MainActivity) {
         const val WAYPOINT_RADIUS = 10F
         const val EARTH_RADIUS_METERS = 6371F * 1000F
         const val TAG = "Navigator"
+        const val METERS_DISPLAY_INTERVAL = 2
     }
 
     var location: Location? = null
@@ -61,6 +62,7 @@ class Navigator(private val context: MainActivity) {
         Log.d(TAG, "Current step = $currStep")
 
         var newDir: BleDirDisplay.Dir? = null
+        var newMeters: Int? = null
 
         if (prevWaypoints?.second?.isEmpty() != false && ends.isNotEmpty()) {
             ends.getOrNull(0)?.let {
@@ -86,8 +88,24 @@ class Navigator(private val context: MainActivity) {
             }
         }
 
-        newDir?.let {
-            context.dirDisplay.writeDir(it, 30)
+        currStep?.let {
+            val currDistance = it.endLocation.distance(location!!)
+            if (abs(
+                    currDistance - (context.dirDisplay.currDirData?.meters ?: Int.MAX_VALUE)
+                ) > METERS_DISPLAY_INTERVAL
+            ) {
+                newMeters = currDistance.toInt()
+            }
+        }
+
+
+        if (newDir != null || newMeters != null) {
+            context.dirDisplay.let {
+                it.writeDir(BleDirDisplay.DirData(
+                    newDir.let { newDir } ?: it.currDirData.dir,
+                    newMeters.let { newMeters } ?: it.currDirData.meters
+                ))
+            }
         }
 
         prevWaypoints = Pair(starts, ends)
