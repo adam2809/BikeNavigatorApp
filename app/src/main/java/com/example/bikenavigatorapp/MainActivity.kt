@@ -48,6 +48,21 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        if (intent == null) {
+            Log.i(TAG, "Intent is null")
+        }
+        when (intent?.action) {
+            Intent.ACTION_SEND -> startNavFromGMapsShare()
+        }
+    }
+
+    fun startNavFromGMapsShare() {
+        val text = intent.extras?.get("android.intent.extra.TEXT")?.toString() ?: run {
+            Log.i(TAG, "Intent is missing TEXT extra")
+            return
+        }
+        val url = text.substring(text.indexOf('\n'), text.lastIndex)
     }
 
     @SuppressLint("MissingPermission")

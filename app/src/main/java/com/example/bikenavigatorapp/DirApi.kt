@@ -40,7 +40,7 @@ class DirApi(context:MainActivity) {
     }
     private val mapper = jacksonObjectMapper()
     var steps = emptyList<Step>()
-    private val queue: RequestQueue = Volley.newRequestQueue(context)
+    val queue: RequestQueue = Volley.newRequestQueue(context)
 
     private fun JSONObject.getNonEmptyArrayElement(key:String):JSONArray?{
         val arr = (this.get(key) as JSONArray)
@@ -80,7 +80,7 @@ class DirApi(context:MainActivity) {
     )
 
     private fun getUrlParams():String{
-        return "origin=52.204132,21.019025&destination=52.197967,21.024323&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
+        return "origin=52.141117,20.717935&destination=52.097200,20.642875&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
     }
 
     fun updateSteps(){
