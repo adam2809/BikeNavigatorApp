@@ -78,8 +78,8 @@ class DirApi(context:MainActivity) {
         return arr
     }
 
-    private val navRequest = JsonObjectRequest(
-        Request.Method.GET, "$DIR_API_URL?${getUrlParams()}", null,
+    inner class DirApiRequest(params:String) :  JsonObjectRequest(
+        Request.Method.GET, "$DIR_API_URL?${params}", null,
         resListener@{ res ->
             Log.i(REQ_TAG,"Response: $res")
             if(res.get("status") != "OK"){
@@ -164,6 +164,6 @@ class DirApi(context:MainActivity) {
     }
 
     fun updateSteps() {
-        queue.add(navRequest)
+        queue.add(DirApiRequest(getUrlParams()))
     }
 }
