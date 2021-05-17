@@ -59,10 +59,15 @@ class MainActivity : AppCompatActivity() {
 
     fun startNavFromGMapsShare() {
         val text = intent.extras?.get("android.intent.extra.TEXT")?.toString() ?: run {
-            Log.i(TAG, "Intent is missing TEXT extra")
+            Log.w(TAG, "Intent is missing TEXT extra")
             return
         }
-        val url = text.substring(text.indexOf('\n'), text.lastIndex)
+        val urlResult = HTTPS_REGEX.find(text)
+        val url = urlResult?.groupValues?.firstOrNull() ?: run {
+            Log.w(TAG, "Could not find url in TEXT extra")
+            return
+        }
+        Log.i(TAG, "URL is: $url")
     }
 
     @SuppressLint("MissingPermission")
