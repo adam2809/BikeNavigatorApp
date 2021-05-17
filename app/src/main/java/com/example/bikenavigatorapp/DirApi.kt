@@ -1,17 +1,17 @@
 package com.example.bikenavigatorapp
 
-import android.content.Context
 import android.util.Log
 import com.android.volley.*
-import com.android.volley.toolbox.JsonObjectRequest
-import com.android.volley.toolbox.Volley
+import com.android.volley.toolbox.*
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
-import com.google.android.gms.location.LocationServices
 import org.json.JSONArray
 import org.json.JSONObject
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 
 class DirApi(context:MainActivity) {
@@ -36,13 +36,40 @@ class DirApi(context:MainActivity) {
         val htmlInstructions: String,
         @JsonProperty("travel_mode")
         val travelMode: String
-    ){
+    ) {
     }
+
     private val mapper = jacksonObjectMapper()
     var steps = emptyList<Step>()
-    val queue: RequestQueue = Volley.newRequestQueue(context)
+    private val queue: RequestQueue = Volley.newRequestQueue(context, object : HurlStack() {
+        @Throws(IOException::class)
+        override fun createConnection(url: URL?): HttpURLConnection {
+            val connection: HttpURLConnection = super.createConnection(url)
+            connection.instanceFollowRedirects = false
+            return connection
+        }
+    })
 
-    private fun JSONObject.getNonEmptyArrayElement(key:String):JSONArray?{
+    class HeadersRequest(
+        url: String,
+        private val listener: Response.Listener<Map<String, String>>,
+        errorListener: Response.ErrorListener
+    ) : Request<Map<String, String>>(Method.GET, url, errorListener) {
+        private companion object {
+            const val TAG = "HeadersRequest";
+        }
+
+        override fun parseNetworkResponse(response: NetworkResponse): Response<Map<String, String>>? {
+            Log.i(TAG, "Got response with code ${response.statusCode}")
+            return Response.success(response.headers, HttpHeaderParser.parseCacheHeaders(response))
+        }
+
+        override fun deliverResponse(response: Map<String, String>?) {
+            listener.onResponse(response)
+        }
+    }
+
+    private fun JSONObject.getNonEmptyArrayElement(key: String): JSONArray? {
         val arr = (this.get(key) as JSONArray)
         if (arr.length() == 0) {
             Log.w(REQ_TAG, "Array $key is  empty")
@@ -74,16 +101,69 @@ class DirApi(context:MainActivity) {
         },
         { error ->
             error.networkResponse.let {
-                Log.w(TAG,"Error while requesting new directions: code=${it.statusCode} msg=${String(it.data,Charsets.UTF_8)}")
+                Log.w(
+                    TAG,
+                    "Error while requesting new directions: code=${it.statusCode} msg=${
+                        String(
+                            it.data,
+                            Charsets.UTF_8
+                        )
+                    }"
+                )
             }
         }
     )
 
-    private fun getUrlParams():String{
+    private fun getUrlParams(): String {
         return "origin=52.141117,20.717935&destination=52.097200,20.642875&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
     }
 
-    fun updateSteps(){
+    fun updateStepsFromSharePlaceUrl(url: String) {
+        queue.add(HeadersRequest(url, Response.Listener {
+            Log.i(TAG, "Got headers: $it")
+        }, Response.ErrorListener errorListener@{ error ->
+            error?.networkResponse?.let {
+                if (it.statusCode == HttpURLConnection.HTTP_MOVED_TEMP) {
+                    handleRedirect(error)
+                } else {
+                    Log.w(TAG, "Error while getting location from share place link")
+                    return@errorListener
+                }
+            } ?: run {
+                Log.w(TAG, "Error network response is null")
+                return@errorListener
+            }
+
+        }))
+    }
+
+    fun getLocationFromRedirectUrl(url: String): Location? {
+        val locRes = LOCATION_REGEX.find(url)
+        locRes?.groupValues?.let {
+            if (it.size != 3) {
+                return@let null
+            }
+            return Location(it[1].toDouble(), it[2].toDouble())
+        } ?: run {
+            return null
+        }
+    }
+
+    fun handleRedirect(error: VolleyError) {
+        val locationRedirectUrl: String = error.networkResponse?.headers?.get("Location") ?: run {
+            Log.e(TAG, "Location header missing")
+            return
+        }
+        getLocationFromRedirectUrl(locationRedirectUrl)?.let {
+            Log.w(TAG, "Got location: $it")
+            updateSteps()
+        } ?: run {
+            Log.e(TAG, "Could not find location in url")
+            return
+        }
+    }
+
+    fun updateSteps() {
         queue.add(navRequest)
     }
 }

@@ -68,6 +68,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         Log.i(TAG, "URL is: $url")
+        dirs.updateStepsFromSharePlaceUrl(url)
     }
 
     @SuppressLint("MissingPermission")
