@@ -1,5 +1,6 @@
 package com.example.bikenavigatorapp
 
+import android.annotation.SuppressLint
 import android.util.Log
 import com.android.volley.*
 import com.android.volley.toolbox.*
@@ -14,7 +15,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 
-class DirApi(context:MainActivity) {
+class DirApi(private val context:MainActivity) {
     private companion object{
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
         const val TAG = "Navigator";
@@ -114,8 +115,8 @@ class DirApi(context:MainActivity) {
         }
     )
 
-    private fun getUrlParams(): String {
-        return "origin=52.141117,20.717935&destination=52.097200,20.642875&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
+    private fun getUrlParams(origin:Location,dest:Location): String {
+        return "origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
     }
 
     fun updateStepsFromSharePlaceUrl(url: String) {
@@ -155,15 +156,21 @@ class DirApi(context:MainActivity) {
             return
         }
         getLocationFromRedirectUrl(locationRedirectUrl)?.let {
-            Log.w(TAG, "Got location: $it")
-            updateSteps()
+            Log.w(TAG, "Extracted location from redirect url: $it")
+            updateSteps(it)
         } ?: run {
             Log.e(TAG, "Could not find location in url")
             return
         }
     }
 
-    fun updateSteps() {
-        queue.add(DirApiRequest(getUrlParams()))
+    @SuppressLint("MissingPermission")
+    fun updateSteps(dest:Location) {
+        context.locClient.lastLocation.addOnSuccessListener listener@{ res ->
+            queue.add(DirApiRequest(getUrlParams(
+                Location(res.latitude,res.longitude),
+                dest
+            )))
+        }
     }
 }

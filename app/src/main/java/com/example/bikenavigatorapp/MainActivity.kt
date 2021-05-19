@@ -34,10 +34,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    val dirDisplay = BleDirDisplay(this)
+    val dirDisplay =  BleDirDisplay(this)
     val dirs by lazy { DirApi(this) }
     private val nav by lazy { Navigator(this) }
-    private val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
+    val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
     private val TAG = "MainActivity";
     private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
@@ -68,6 +68,8 @@ class MainActivity : AppCompatActivity() {
             return
         }
         Log.i(TAG, "URL is: $url")
+
+        startLocationUpdates()
         dirs.updateStepsFromSharePlaceUrl(url)
     }
 
@@ -171,7 +173,5 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun updateSteps(v: View) {
-        dirs.updateSteps()
-        startLocationUpdates()
     }
 }

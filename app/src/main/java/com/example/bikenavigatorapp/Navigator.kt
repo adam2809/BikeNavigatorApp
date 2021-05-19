@@ -3,7 +3,9 @@ package com.example.bikenavigatorapp
 import android.location.Location
 import android.util.Log
 import kotlin.math.*
-
+//TODO increase meters size only holding 255 meters for now
+//TODO fix activity lifecycles - do not reinit bledirdisp since it breaks the gatt connection
+//TODO ask for background location permissions
 fun Location.toRadians(): Pair<Double, Double> {
     return Pair(latitude * Math.PI / 180, longitude * Math.PI / 180)
 }
