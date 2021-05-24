@@ -60,6 +60,7 @@ class MainActivity : AppCompatActivity() {
     override fun onDestroy() {
         super.onDestroy()
         stopLocationUpdates()
+        dirDisplay.bluetoothGatt?.disconnect()
     }
 
     private fun startNavFromGMapsShare() {
