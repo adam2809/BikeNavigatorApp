@@ -13,6 +13,7 @@ import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
+@ExperimentalUnsignedTypes
 class BleDirDisplay(private val context: MainActivity) {
     private companion object {
         const val TAG = "BleDirDisplay"
@@ -149,9 +150,13 @@ class BleDirDisplay(private val context: MainActivity) {
         }
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            displayCharacteristic?.value = ByteArray(2).apply {
+            displayCharacteristic?.value = ByteArray(5).apply {
+                val uMeters = dirData.meters.toUInt()
                 this[0] = dirData.dir.ordinal.toByte()
-                this[1] = dirData.meters.toByte()
+                this[1] = (uMeters shr 24).toByte()
+                this[2] = (uMeters shr 16).toByte()
+                this[3] = (uMeters shr 8).toByte()
+                this[4] = (uMeters shr 0).toByte()
             }
             gatt.writeCharacteristic(displayCharacteristic)
             currDirData = dirData

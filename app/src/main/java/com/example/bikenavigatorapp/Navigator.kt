@@ -60,6 +60,7 @@ class Navigator(private val context: MainActivity) {
         val newMeters: Int? = checkForNewMeters()
 
         if (newDir != null || newMeters != null) {
+            Log.d(TAG,"Setting new ${newDir?.let{"dir=$it"} ?: ""} ${newMeters?.let{"meters=$it"} ?: ""}")
             context.dirDisplay.let {
                 it.writeDir(BleDirDisplay.DirData(
                     newDir.let { newDir } ?: it.currDirData.dir,
