@@ -3,7 +3,6 @@ package com.example.bikenavigatorapp
 import android.location.Location
 import android.util.Log
 import kotlin.math.*
-//TODO increase meters size only holding 255 meters for now
 //TODO fix activity lifecycles - do not reinit bledirdisp since it breaks the gatt connection
 //TODO ask for background location permissions
 fun Location.toRadians(): Pair<Double, Double> {
@@ -42,6 +41,7 @@ class Navigator(private val context: MainActivity) {
         }
     var currStep: DirApi.Step? = null
     private var prevWaypoints: Pair<List<DirApi.Step>, List<DirApi.Step>>? = null
+    private var writeSuccessful = false
 
 
     private fun update() {
@@ -59,17 +59,23 @@ class Navigator(private val context: MainActivity) {
         val newDir: BleDirDisplay.Dir? = checkForNewDir(starts, ends)
         val newMeters: Int? = checkForNewMeters()
 
-        if (newDir != null || newMeters != null) {
-            Log.d(TAG,"Setting new ${newDir?.let{"dir=$it"} ?: ""} ${newMeters?.let{"meters=$it"} ?: ""}")
-            context.dirDisplay.let {
-                it.writeDir(BleDirDisplay.DirData(
-                    newDir.let { newDir } ?: it.currDirData.dir,
-                    newMeters.let { newMeters } ?: it.currDirData.meters
-                ))
-            }
+        if (newDir != null || newMeters != null || !writeSuccessful) {
+            Log.d(
+                TAG,
+                "Setting new ${newDir?.let { "dir=$it" } ?: ""} ${newMeters?.let { "meters=$it" } ?: ""}")
+            writeDirData(newDir, newMeters)
         }
 
         prevWaypoints = Pair(starts, ends)
+    }
+
+    private fun writeDirData(dir: BleDirDisplay.Dir?, meters: Int?) {
+        context.dirDisplay.let {
+            writeSuccessful = it.writeDir(BleDirDisplay.DirData(
+                dir.let { dir } ?: it.currDirData.dir,
+                meters.let { meters } ?: it.currDirData.meters
+            ))
+        }
     }
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
@@ -84,10 +90,10 @@ class Navigator(private val context: MainActivity) {
     }
 
     private fun checkForNewDir(starts:List<DirApi.Step>,ends:List<DirApi.Step>):BleDirDisplay.Dir?{
-        val (prevStarts,prevEnds) = prevWaypoints ?: Pair(emptyList(),emptyList())
+        val (prevStarts, prevEnds) = prevWaypoints ?: Pair(null, null)
         var ret:BleDirDisplay.Dir? = null
 
-        if (prevEnds.isEmpty() && ends.isNotEmpty()) {
+        if (prevEnds.isNullOrEmpty() && ends.isNotEmpty()) {
             ends.first().let {
                 if (currStep != null) {
                     Log.i(TAG, "Ending step: $currStep")
@@ -97,7 +103,7 @@ class Navigator(private val context: MainActivity) {
             }
         }
 
-        if (prevStarts.isEmpty() && starts.isNotEmpty()) {
+        if (prevStarts.isNullOrEmpty() && starts.isNotEmpty()) {
             starts.first().let {
                 if (currStep == null) {
                     Log.i(TAG, "Starting step: $it")

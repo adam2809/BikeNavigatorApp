@@ -1,19 +1,14 @@
 package com.example.bikenavigatorapp
 
-import android.Manifest
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
-import android.content.Context
 import android.os.Build
 import android.os.Handler
 import android.util.Log
-import android.view.View
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
-@ExperimentalUnsignedTypes
 class BleDirDisplay(private val context: MainActivity) {
     private companion object {
         const val TAG = "BleDirDisplay"
@@ -143,24 +138,30 @@ class BleDirDisplay(private val context: MainActivity) {
         return displayCharacteristic != null // && bluetoothManager?.getConnectionState(bluetoothGatt?.device) == BluetoothProfile.STATE_CONNECTED
     }
 
-    fun writeDir(dirData: DirData) {
+    fun writeDir(dirData: DirData): Boolean {
         if (!isBtDeviceReadyForAccess()) {
             Log.w(TAG, "Attempting to access device which is not ready")
-            return
+            return false
         }
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             displayCharacteristic?.value = ByteArray(5).apply {
-                val uMeters = dirData.meters.toUInt()
-                this[0] = dirData.dir.ordinal.toByte()
-                this[1] = (uMeters shr 24).toByte()
-                this[2] = (uMeters shr 16).toByte()
-                this[3] = (uMeters shr 8).toByte()
-                this[4] = (uMeters shr 0).toByte()
+                dirData.meters.let {
+                    this[0] = dirData.dir.ordinal.toByte()
+                    this[1] = (it shr 24).toByte()
+                    this[2] = (it shr 16).toByte()
+                    this[3] = (it shr 8).toByte()
+                    this[4] = (it shr 0).toByte()
+                }
             }
-            gatt.writeCharacteristic(displayCharacteristic)
-            currDirData = dirData
+            return if (gatt.writeCharacteristic(displayCharacteristic)) {
+                currDirData = dirData
+                true
+            } else {
+                false
+            }
         } ?: Log.e(TAG, "Unable to write $dirData")
+        return false
     }
 
     fun straight() {
