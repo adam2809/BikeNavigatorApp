@@ -56,7 +56,13 @@ class Navigator(private val context: MainActivity) {
         )
         Log.d(TAG, "Current step = $currStep")
 
-        val newDir: BleDirDisplay.Dir? = checkForNewDir(starts, ends)
+        updateCurrStep(starts, ends)
+        val index = currStep?.index?.plus(1)
+        val newDir: BleDirDisplay.Dir? = if (index != null && index < context.dirs.steps.size) {
+            context.dirs.steps[index].toDir()
+        } else {
+            currStep?.toDir()
+        }
         val newMeters: Int? = checkForNewMeters()
 
         if (newDir != null || newMeters != null || !writeSuccessful) {
@@ -89,15 +95,13 @@ class Navigator(private val context: MainActivity) {
         )
     }
 
-    private fun checkForNewDir(starts:List<DirApi.Step>,ends:List<DirApi.Step>):BleDirDisplay.Dir?{
+    private fun updateCurrStep(starts: List<DirApi.Step>, ends: List<DirApi.Step>) {
         val (prevStarts, prevEnds) = prevWaypoints ?: Pair(null, null)
-        var ret:BleDirDisplay.Dir? = null
 
         if (prevEnds.isNullOrEmpty() && ends.isNotEmpty()) {
             ends.first().let {
                 if (currStep != null) {
                     Log.i(TAG, "Ending step: $currStep")
-                    ret = BleDirDisplay.Dir.NO_DIR
                     currStep = null
                 }
             }
@@ -107,20 +111,21 @@ class Navigator(private val context: MainActivity) {
             starts.first().let {
                 if (currStep == null) {
                     Log.i(TAG, "Starting step: $it")
-                    ret = when (it.maneuver) {
-                        "turn-left" -> BleDirDisplay.Dir.LEFT
-                        "turn-right" -> BleDirDisplay.Dir.RIGHT
-                        else -> BleDirDisplay.Dir.STRAIGHT
-                    }
                     currStep = it
                 }
             }
         }
-
-        return ret
     }
 
-    private fun checkForNewMeters():Int?{
+    private fun DirApi.Step.toDir(): BleDirDisplay.Dir {
+        return when (this.maneuver) {
+            "turn-left" -> BleDirDisplay.Dir.LEFT
+            "turn-right" -> BleDirDisplay.Dir.RIGHT
+            else -> BleDirDisplay.Dir.STRAIGHT
+        }
+    }
+
+    private fun checkForNewMeters(): Int? {
         currStep?.let {
             val currDistance = it.endLocation.distance(location!!)
             if (abs(

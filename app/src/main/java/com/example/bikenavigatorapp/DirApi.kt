@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.util.Log
 import com.android.volley.*
 import com.android.volley.toolbox.*
+import com.fasterxml.jackson.annotation.JsonIgnore
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
@@ -26,6 +27,8 @@ class DirApi(private val context:MainActivity) {
     data class Location(val lat:Double,val lng:Double)
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Step(
+        @JsonIgnore
+        var index: Int?,
         val distance: TextVal,
         val duration: TextVal,
         val maneuver: String?,
@@ -79,26 +82,35 @@ class DirApi(private val context:MainActivity) {
         return arr
     }
 
-    inner class DirApiRequest(params:String) :  JsonObjectRequest(
+    private fun List<Step>.addIndexes() {
+        steps.forEachIndexed { i, step ->
+            step.index = i
+        }
+    }
+
+    inner class DirApiRequest(params: String) : JsonObjectRequest(
         Request.Method.GET, "$DIR_API_URL?${params}", null,
         resListener@{ res ->
-            Log.i(REQ_TAG,"Response: $res")
-            if(res.get("status") != "OK"){
-                Log.w(TAG,"Response has error status")
+            Log.i(REQ_TAG, "Response: $res")
+            if (res.get("status") != "OK") {
+                Log.w(TAG, "Response has error status")
                 return@resListener
             }
 
-            val stepsJson:JSONArray = res.let {
+            val stepsJson: JSONArray = res.let {
                 it.getNonEmptyArrayElement("routes")?.get(0) as JSONObject
             }.let {
                 it.getNonEmptyArrayElement("legs")?.get(0) as JSONObject
             }.getNonEmptyArrayElement("steps") ?: return@resListener
 
 
-            steps = mapper.readValue(stepsJson.toString().also { Log.d(REQ_TAG,"Steps array: $it") })
+            steps =
+                mapper.readValue(stepsJson.toString().also { Log.d(REQ_TAG, "Steps array: $it") })
+            steps.addIndexes()
 
-            Log.i(REQ_TAG,"Steps successfully updated new count is ${steps.size}")
-            Log.d(REQ_TAG,"New steps: $steps")
+
+            Log.i(REQ_TAG, "Steps successfully updated new count is ${steps.size}")
+            Log.d(REQ_TAG, "New steps: $steps")
         },
         { error ->
             error.networkResponse.let {
