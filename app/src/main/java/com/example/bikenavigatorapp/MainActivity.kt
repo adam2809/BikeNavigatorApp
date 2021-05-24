@@ -15,13 +15,16 @@ import android.util.Log
 import android.view.View
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.LocationCallback
-import com.google.android.gms.location.LocationRequest
-import com.google.android.gms.location.LocationResult
-import com.google.android.gms.location.LocationServices
+import com.google.android.gms.location.*
 
 
 class MainActivity : AppCompatActivity() {
+    companion object{
+        private const val TAG = "MainActivity";
+        private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
+        const val LOCATION_PERMISSION_REQUEST_CODE = 2
+    }
+
     private val locationCb by lazy {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult?) {
@@ -37,11 +40,8 @@ class MainActivity : AppCompatActivity() {
     val dirDisplay =  BleDirDisplay(this)
     val dirs by lazy { DirApi(this) }
     private val nav by lazy { Navigator(this) }
-    val locClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
+    val locClient: FusedLocationProviderClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
 
-    private val TAG = "MainActivity";
-    private val ENABLE_BLUETOOTH_REQUEST_CODE = 1
-    val LOCATION_PERMISSION_REQUEST_CODE = 2
 
 
     @SuppressLint("MissingPermission")
@@ -51,13 +51,19 @@ class MainActivity : AppCompatActivity() {
 
         if (intent == null) {
             Log.i(TAG, "Intent is null")
+            return
         }
         when (intent?.action) {
             Intent.ACTION_SEND -> startNavFromGMapsShare()
         }
     }
 
-    fun startNavFromGMapsShare() {
+    override fun onResume() {
+        super.onResume()
+        promptEnableBluetooth()
+    }
+
+    private fun startNavFromGMapsShare() {
         val text = intent.extras?.get("android.intent.extra.TEXT")?.toString() ?: run {
             Log.w(TAG, "Intent is missing TEXT extra")
             return
@@ -96,11 +102,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun stopLocationUpdates() {
         locClient.removeLocationUpdates(locationCb)
-    }
-
-    override fun onResume() {
-        super.onResume()
-        promptEnableBluetooth()
     }
 
     private fun promptEnableBluetooth() {

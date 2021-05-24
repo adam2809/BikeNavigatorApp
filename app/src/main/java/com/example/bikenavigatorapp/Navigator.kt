@@ -27,14 +27,6 @@ fun DirApi.Location.distance(loc: Location): Double {
     return Navigator.EARTH_RADIUS_METERS * c
 }
 
-fun List<DirApi.Step>.leftShift(): List<DirApi.Step> {
-    return this.windowed(2).map { (curr, next) ->
-        curr.copy(
-            maneuver = next.maneuver
-        )
-    }
-}
-
 class Navigator(private val context: MainActivity) {
     companion object {
         const val WAYPOINT_RADIUS = 10F
@@ -56,6 +48,7 @@ class Navigator(private val context: MainActivity) {
         if (location == null) {
             return
         }
+
         val (starts, ends) = findNearbyWaypoints(location!!)
         Log.d(
             TAG,
@@ -63,43 +56,8 @@ class Navigator(private val context: MainActivity) {
         )
         Log.d(TAG, "Current step = $currStep")
 
-        var newDir: BleDirDisplay.Dir? = null
-        var newMeters: Int? = null
-
-        if (prevWaypoints?.second?.isEmpty() != false && ends.isNotEmpty()) {
-            ends.getOrNull(0)?.let {
-                if (currStep != null) {
-                    Log.i(TAG, "Ending step: $currStep")
-                    newDir = BleDirDisplay.Dir.NO_DIR
-                    currStep = null
-                }
-            }
-        }
-
-        if (prevWaypoints?.first?.isEmpty() != false && starts.isNotEmpty()) {
-            starts.getOrNull(0)?.let {
-                if (currStep == null) {
-                    Log.i(TAG, "Starting step: $it")
-                    newDir = when (it.maneuver) {
-                        "turn-left" -> BleDirDisplay.Dir.LEFT
-                        "turn-right" -> BleDirDisplay.Dir.RIGHT
-                        else -> BleDirDisplay.Dir.STRAIGHT
-                    }
-                    currStep = it
-                }
-            }
-        }
-
-        currStep?.let {
-            val currDistance = it.endLocation.distance(location!!)
-            if (abs(
-                    currDistance - (context.dirDisplay.currDirData?.meters ?: Int.MAX_VALUE)
-                ) > METERS_DISPLAY_INTERVAL
-            ) {
-                newMeters = currDistance.toInt()
-            }
-        }
-
+        val newDir: BleDirDisplay.Dir? = checkForNewDir(starts, ends)
+        val newMeters: Int? = checkForNewMeters()
 
         if (newDir != null || newMeters != null) {
             context.dirDisplay.let {
@@ -115,12 +73,56 @@ class Navigator(private val context: MainActivity) {
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
         return Pair(
-            context.dirs.steps.leftShift().filter {
+            context.dirs.steps.filter {
                 it.startLocation.distance(loc) < WAYPOINT_RADIUS
             },
-            context.dirs.steps.leftShift().filter {
+            context.dirs.steps.filter {
                 it.endLocation.distance(loc) < WAYPOINT_RADIUS
             }
         )
+    }
+
+    private fun checkForNewDir(starts:List<DirApi.Step>,ends:List<DirApi.Step>):BleDirDisplay.Dir?{
+        val (prevStarts,prevEnds) = prevWaypoints ?: Pair(emptyList(),emptyList())
+        var ret:BleDirDisplay.Dir? = null
+
+        if (prevEnds.isEmpty() && ends.isNotEmpty()) {
+            ends.first().let {
+                if (currStep != null) {
+                    Log.i(TAG, "Ending step: $currStep")
+                    ret = BleDirDisplay.Dir.NO_DIR
+                    currStep = null
+                }
+            }
+        }
+
+        if (prevStarts.isEmpty() && starts.isNotEmpty()) {
+            starts.first().let {
+                if (currStep == null) {
+                    Log.i(TAG, "Starting step: $it")
+                    ret = when (it.maneuver) {
+                        "turn-left" -> BleDirDisplay.Dir.LEFT
+                        "turn-right" -> BleDirDisplay.Dir.RIGHT
+                        else -> BleDirDisplay.Dir.STRAIGHT
+                    }
+                    currStep = it
+                }
+            }
+        }
+
+        return ret
+    }
+
+    private fun checkForNewMeters():Int?{
+        currStep?.let {
+            val currDistance = it.endLocation.distance(location!!)
+            if (abs(
+                    currDistance - (context.dirDisplay.currDirData.meters)
+                ) > METERS_DISPLAY_INTERVAL
+            ) {
+                return currDistance.toInt()
+            }
+        }
+        return null
     }
 }
