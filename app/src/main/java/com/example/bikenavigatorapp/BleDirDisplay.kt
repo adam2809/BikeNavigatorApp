@@ -13,7 +13,7 @@ import java.util.*
 class BleDirDisplay(private val context: MainActivity) {
     companion object {
         const val TAG = "BleDirDisplay"
-        const val SCAN_PERIOD: Long = 2000;
+        const val SCAN_PERIOD: Long = 500;
         const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE";
         const val DISPLAY_SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
         const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";

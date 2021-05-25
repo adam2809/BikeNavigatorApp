@@ -221,7 +221,4 @@ class MainActivity : AppCompatActivity() {
     fun right(v: View) {
         dirDisplay.right()
     }
-
-    fun updateSteps(v: View) {
-    }
 }

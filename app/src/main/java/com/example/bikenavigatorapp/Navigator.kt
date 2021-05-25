@@ -56,13 +56,14 @@ class Navigator(private val context: MainActivity) {
         )
         Log.d(TAG, "Current step = $currStep")
 
-        updateCurrStep(starts, ends)
+        val isStepUpdate = updateCurrStep(starts, ends)
         val index = currStep?.index?.plus(1)
-        val newDir: BleDirDisplay.Dir? = if (index != null && index < context.dirs.steps.size) {
-            context.dirs.steps[index].toDir()
-        } else {
-            currStep?.toDir()
+        val newDir: BleDirDisplay.Dir? = when {
+            !isStepUpdate -> null
+            index != null && index < context.dirs.steps.size -> context.dirs.steps[index].toDir()
+            else -> currStep?.toDir()
         }
+
         val newMeters: Int? = checkForNewMeters()
 
         if (newDir != null || newMeters != null || !writeSuccessful) {
@@ -95,7 +96,7 @@ class Navigator(private val context: MainActivity) {
         )
     }
 
-    private fun updateCurrStep(starts: List<DirApi.Step>, ends: List<DirApi.Step>) {
+    private fun updateCurrStep(starts: List<DirApi.Step>, ends: List<DirApi.Step>): Boolean {
         val (prevStarts, prevEnds) = prevWaypoints ?: Pair(null, null)
 
         if (prevEnds.isNullOrEmpty() && ends.isNotEmpty()) {
@@ -103,6 +104,7 @@ class Navigator(private val context: MainActivity) {
                 if (currStep != null) {
                     Log.i(TAG, "Ending step: $currStep")
                     currStep = null
+                    return true
                 }
             }
         }
@@ -112,9 +114,11 @@ class Navigator(private val context: MainActivity) {
                 if (currStep == null) {
                     Log.i(TAG, "Starting step: $it")
                     currStep = it
+                    return true
                 }
             }
         }
+        return false
     }
 
     private fun DirApi.Step.toDir(): BleDirDisplay.Dir {
