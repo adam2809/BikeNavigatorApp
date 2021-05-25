@@ -3,6 +3,7 @@ package com.example.bikenavigatorapp
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
+import android.content.Intent
 import android.os.Build
 import android.os.Handler
 import android.util.Log
@@ -10,12 +11,15 @@ import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
 class BleDirDisplay(private val context: MainActivity) {
-    private companion object {
+    companion object {
         const val TAG = "BleDirDisplay"
         const val SCAN_PERIOD: Long = 2000;
         const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE";
         const val DISPLAY_SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
         const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
+        const val GATT_STATE_SCANNING = 4;
+        const val GATT_STATE_SCAN_SUCCESS = 5;
+        const val GATT_STATE_SCAN_FAIL = 6;
     }
 
     data class DirData(val dir: Dir, val meters: Int)
@@ -44,13 +48,17 @@ class BleDirDisplay(private val context: MainActivity) {
             gatt: BluetoothGatt, status: Int,
             newState: Int
         ) {
-            if (newState == BluetoothProfile.STATE_CONNECTED) {
-                Log.i(TAG, "Connected to GATT server.")
+            when (newState) {
+                BluetoothProfile.STATE_CONNECTED -> {
+                    Log.i(TAG, "Connected to GATT server.")
 
-                gatt.discoverServices()
-            } else if (newState == BluetoothProfile.STATE_DISCONNECTED) {
-                Log.i(TAG, "Disconnected from GATT server.")
+                    gatt.discoverServices()
+                }
+                BluetoothProfile.STATE_DISCONNECTED -> Log.i(TAG, "Disconnected from GATT server.")
+                BluetoothProfile.STATE_CONNECTING -> Log.i(TAG, "Disconnected from GATT server.")
+                BluetoothProfile.STATE_DISCONNECTING -> Log.i(TAG, "Disconnected from GATT server.")
             }
+            sendUpdateGattStateBroadcast(newState)
         }
 
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
@@ -98,11 +106,15 @@ class BleDirDisplay(private val context: MainActivity) {
                     scanner.stopScan(leScanCallback)
                     found?.let {
                         Log.i(TAG, "Found $found");
+                        sendUpdateGattStateBroadcast(GATT_STATE_SCAN_SUCCESS)
                         ifFoundCb(it);
+                    } ?: run {
+                        sendUpdateGattStateBroadcast(GATT_STATE_SCAN_FAIL)
                     }
                 }, SCAN_PERIOD)
                 Log.i(TAG, "Starting scan for ${SCAN_PERIOD} ms");
                 scanning = true
+                sendUpdateGattStateBroadcast(GATT_STATE_SCANNING)
                 scanner.startScan(leScanCallback)
             }
         }
@@ -162,6 +174,14 @@ class BleDirDisplay(private val context: MainActivity) {
             }
         } ?: Log.e(TAG, "Unable to write $dirData")
         return false
+    }
+
+    private fun sendUpdateGattStateBroadcast(state: Int) {
+        Intent().also {
+            it.action = MainActivity.GATT_CONN_STATE_CHANGE_ACTION
+            it.putExtra(MainActivity.GATT_CONN_STATE_CHANGE_EXTRA, state)
+            context.sendBroadcast(it)
+        }
     }
 
     fun straight() {

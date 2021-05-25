@@ -31,6 +31,7 @@ xmlns:android="http://schemas.android.com/apk/res/android">
             android:layout_height="wrap_content"
             android:onClick="left"
             android:text="left" />
+
         <Button
             android:id="@+id/btnUpdate"
             android:layout_width="wrap_content"
@@ -38,5 +39,15 @@ xmlns:android="http://schemas.android.com/apk/res/android">
             android:onClick="updateSteps"
             android:text="update" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/connStatusTextView"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_above="@+id/lyt_body"
+        android:layout_centerHorizontal="true"
+        android:layout_marginBottom="89dp"
+        android:gravity="center_horizontal"
+        android:text="@string/connection_status" />
 
 </RelativeLayout>

@@ -4,22 +4,31 @@ import android.Manifest
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import com.google.android.gms.location.*
 
 
 class MainActivity : AppCompatActivity() {
-    companion object{
+    companion object {
         private const val TAG = "MainActivity";
         private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
+        const val GATT_CONN_STATE_CHANGE_ACTION =
+            "com.example.bikenavigatorapp.GATT_CONN_STATE_CHANGE_ACTION"
+        const val GATT_CONN_STATE_CHANGE_EXTRA =
+            "com.example.bikenavigatorapp.GATT_CONN_STATE_CHANGE_EXTRA"
     }
 
     private val locationCb by lazy {
@@ -50,6 +59,9 @@ class MainActivity : AppCompatActivity() {
         when (intent?.action) {
             Intent.ACTION_SEND -> startNavFromGMapsShare()
         }
+
+        registerGattConnStateChangeReceiver()
+        updateConnectionStatusTextView(BluetoothProfile.STATE_DISCONNECTED)
     }
 
     override fun onResume() {
@@ -108,6 +120,43 @@ class MainActivity : AppCompatActivity() {
         if (!dirDisplay.isBtEnabled()) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, ENABLE_BLUETOOTH_REQUEST_CODE)
+        }
+    }
+
+    private fun registerGattConnStateChangeReceiver() {
+        val gattConnStateChangeBr = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                updateConnectionStatusTextView(
+                    intent?.extras?.getInt(GATT_CONN_STATE_CHANGE_EXTRA) ?: run {
+                        Log.w(TAG, "No GATT_CONN_STATE_CHANGE_EXTRA provided")
+                        return
+                    })
+            }
+        }
+
+        val filter = IntentFilter(GATT_CONN_STATE_CHANGE_ACTION)
+        registerReceiver(gattConnStateChangeBr, filter)
+    }
+
+    fun updateConnectionStatusTextView(state: Int) {
+        findViewById<TextView>(R.id.connStatusTextView).apply {
+            text = String.format(
+                resources.getString(R.string.connection_status),
+                state.connStatusToString()
+            )
+        }
+    }
+
+    private fun Int.connStatusToString(): String {
+        return when (this) {
+            BluetoothProfile.STATE_CONNECTED -> "Connected"
+            BluetoothProfile.STATE_DISCONNECTED -> "Disconnected"
+            BluetoothProfile.STATE_CONNECTING -> "Connecting..."
+            BluetoothProfile.STATE_DISCONNECTING -> "Disconnecting..."
+            BleDirDisplay.GATT_STATE_SCANNING -> "Scannning..."
+            BleDirDisplay.GATT_STATE_SCAN_SUCCESS -> "Scan successful"
+            BleDirDisplay.GATT_STATE_SCAN_FAIL -> "Scan failed"
+            else -> ""
         }
     }
 
