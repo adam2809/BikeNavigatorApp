@@ -45,8 +45,12 @@ class MainActivity : AppCompatActivity() {
 
     val dirDisplay =  BleDirDisplay(this)
     val dirs by lazy { DirApi(this) }
-    private val nav by lazy { Navigator(this) }
-    val locClient: FusedLocationProviderClient by lazy { LocationServices.getFusedLocationProviderClient(this) }
+    val nav by lazy { Navigator(this) }
+    val locClient: FusedLocationProviderClient by lazy {
+        LocationServices.getFusedLocationProviderClient(
+            this
+        )
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)

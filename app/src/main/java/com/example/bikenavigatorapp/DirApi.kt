@@ -107,7 +107,7 @@ class DirApi(private val context:MainActivity) {
             steps =
                 mapper.readValue(stepsJson.toString().also { Log.d(REQ_TAG, "Steps array: $it") })
             steps.addIndexes()
-
+            context.nav.writeFirstStep = true
 
             Log.i(REQ_TAG, "Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG, "New steps: $steps")

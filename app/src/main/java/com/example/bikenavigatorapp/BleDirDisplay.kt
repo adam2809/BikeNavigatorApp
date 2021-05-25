@@ -41,7 +41,7 @@ class BleDirDisplay(private val context: MainActivity) {
     var bluetoothGatt: BluetoothGatt? = null
     var displayCharacteristic: BluetoothGattCharacteristic? = null
 
-    var currDirData: DirData = DirData(Dir.NO_DIR, 0)
+    var targetDirData: DirData = DirData(Dir.NO_DIR, 0)
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
@@ -151,6 +151,7 @@ class BleDirDisplay(private val context: MainActivity) {
     }
 
     fun writeDir(dirData: DirData): Boolean {
+        targetDirData = dirData
         if (!isBtDeviceReadyForAccess()) {
             Log.w(TAG, "Attempting to access device which is not ready")
             return false
@@ -166,12 +167,7 @@ class BleDirDisplay(private val context: MainActivity) {
                     this[4] = (it shr 0).toByte()
                 }
             }
-            return if (gatt.writeCharacteristic(displayCharacteristic)) {
-                currDirData = dirData
-                true
-            } else {
-                false
-            }
+            return gatt.writeCharacteristic(displayCharacteristic)
         } ?: Log.e(TAG, "Unable to write $dirData")
         return false
     }
