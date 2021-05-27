@@ -42,6 +42,13 @@ class BleDirDisplay(private val context: Context) {
     var displayCharacteristic: BluetoothGattCharacteristic? = null
 
     var targetDirData: DirData = DirData(Dir.NO_DIR, 0)
+        set(value) {
+            if (value != field) {
+                isTargetWritten = false
+            }
+            field = value
+        }
+    var isTargetWritten = true
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
@@ -147,26 +154,31 @@ class BleDirDisplay(private val context: Context) {
         return displayCharacteristic != null
     }
 
-    fun writeDir(dirData: DirData): Boolean {
-        targetDirData = dirData
+    fun update() {
+        if (!isTargetWritten) {
+            writeTargetDir()
+        }
+    }
+
+    private fun writeTargetDir() {
         if (!isBtDeviceReadyForAccess()) {
             Log.w(TAG, "Attempting to access device which is not ready")
-            return false
+            isTargetWritten = false
         }
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             displayCharacteristic?.value = ByteArray(5).apply {
-                dirData.meters.let {
-                    this[0] = dirData.dir.ordinal.toByte()
+                targetDirData.meters.let {
+                    this[0] = targetDirData.dir.ordinal.toByte()
                     this[1] = (it shr 24).toByte()
                     this[2] = (it shr 16).toByte()
                     this[3] = (it shr 8).toByte()
                     this[4] = (it shr 0).toByte()
                 }
             }
-            return gatt.writeCharacteristic(displayCharacteristic)
-        } ?: Log.e(TAG, "Unable to write $dirData")
-        return false
+            isTargetWritten = gatt.writeCharacteristic(displayCharacteristic)
+        } ?: Log.e(TAG, "Unable to write $targetDirData")
+        isTargetWritten = false
     }
 
     private fun sendUpdateGattStateBroadcast(state: Int) {
@@ -178,20 +190,24 @@ class BleDirDisplay(private val context: Context) {
     }
 
     fun straight() {
-        writeDir(DirData(Dir.STRAIGHT, 100))
+        targetDirData = DirData(Dir.STRAIGHT, 100)
+        writeTargetDir()
     }
 
     fun left() {
-        writeDir(DirData(Dir.LEFT, 15))
+        targetDirData = DirData(Dir.STRAIGHT, 100)
+        writeTargetDir()
 
     }
 
     fun right() {
-        writeDir(DirData(Dir.RIGHT, 32))
+        targetDirData = DirData(Dir.RIGHT, 32)
+        writeTargetDir()
     }
 
     fun noDir() {
-        writeDir(DirData(Dir.NO_DIR, 40))
+        targetDirData = DirData(Dir.NO_DIR, 40)
+        writeTargetDir()
     }
 
     fun isBtEnabled(): Boolean = bluetoothAdapter.isEnabled

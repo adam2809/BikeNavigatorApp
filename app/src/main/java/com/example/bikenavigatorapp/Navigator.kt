@@ -46,13 +46,15 @@ class Navigator(
         }
     private var currStep: DirApi.Step? = null
     private var prevWaypoints: Pair<List<DirApi.Step>, List<DirApi.Step>>? = null
-    private var writeSuccessful = false
 
     init {
         Log.i(TAG, "Writing first step")
         steps.let {
             currStep = it[0]
-            writeDirData(it[1].toDir(), it[1].endLocation.distance(startLocation).toInt())
+            dirDisplay.targetDirData = BleDirDisplay.DirData(
+                it[1].toDir(),
+                it[1].endLocation.distance(startLocation).toInt()
+            )
         }
     }
 
@@ -68,10 +70,9 @@ class Navigator(
         )
         Log.d(TAG, "Current step = $currStep")
 
-        val isStepUpdate = updateCurrStep(starts, ends)
+        updateCurrStep(starts, ends)
         val index = currStep?.index?.plus(1)
         val newDir: BleDirDisplay.Dir? = when {
-            !isStepUpdate -> null
             index != null && index < steps.size -> steps[index].toDir()
             currStep == null -> BleDirDisplay.Dir.NO_DIR
             else -> currStep?.toDir()
@@ -79,23 +80,19 @@ class Navigator(
 
         val newMeters: Int? = checkForNewMeters()
 
-        if (newDir != null || newMeters != null || !writeSuccessful) {
+        if (newDir != null || newMeters != null) {
             Log.d(
                 TAG,
                 "Setting new ${newDir?.let { "dir=$it" } ?: ""} ${newMeters?.let { "meters=$it" } ?: ""}")
-            writeDirData(newDir, newMeters)
+            dirDisplay.let {
+                it.targetDirData = BleDirDisplay.DirData(
+                    newMeters.let { newDir } ?: it.targetDirData.dir,
+                    newMeters.let { newMeters } ?: it.targetDirData.meters
+                )
+            }
         }
 
         prevWaypoints = Pair(starts, ends)
-    }
-
-    private fun writeDirData(dir: BleDirDisplay.Dir?, meters: Int?) {
-        dirDisplay.let {
-            writeSuccessful = it.writeDir(BleDirDisplay.DirData(
-                dir.let { dir } ?: it.targetDirData.dir,
-                meters.let { meters } ?: it.targetDirData.meters
-            ))
-        }
     }
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {

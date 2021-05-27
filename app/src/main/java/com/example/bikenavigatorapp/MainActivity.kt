@@ -38,6 +38,7 @@ class MainActivity : AppCompatActivity() {
                 locationResult?.let { res ->
                     nav?.location = res.locations.firstOrNull()?.also {
                         Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
+                        dirDisplay.update()
                     } ?: run {
                         Log.w(TAG, "Location update useless since Navigator is null")
                         return@let
