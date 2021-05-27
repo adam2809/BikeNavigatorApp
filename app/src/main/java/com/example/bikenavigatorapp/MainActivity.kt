@@ -35,17 +35,20 @@ class MainActivity : AppCompatActivity() {
         object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult?) {
                 locationResult?.let { res ->
-                    nav.location = res.locations.firstOrNull()?.also {
+                    nav?.location = res.locations.firstOrNull()?.also {
                         Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
+                    } ?: run {
+                        stopLocationUpdates()
+                        return@let
                     }
                 } ?: Log.w(TAG, "Location result is null")
             }
         }
     }
 
-    val dirDisplay =  BleDirDisplay(this)
-    val dirs by lazy { DirApi(this) }
-    val nav by lazy { Navigator(this) }
+    val dirDisplay = BleDirDisplay(this)
+    lateinit var dirs: DirApi
+    var nav: Navigator? = null
     val locClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(
             this
@@ -90,9 +93,18 @@ class MainActivity : AppCompatActivity() {
             return
         }
         Log.i(TAG, "URL is: $url")
+        startNewNav(url)
+    }
 
-        startLocationUpdates()
-        dirs.updateStepsFromSharePlaceUrl(url)
+    @SuppressLint("MissingPermission")
+    private fun startNewNav(sharePlaceUrl: String) {
+        locClient.lastLocation.addOnSuccessListener listener@{ res ->
+            dirs = DirApi(this) {
+                startLocationUpdates()
+                nav = Navigator(this, res)
+            }
+            dirs.updateStepsFromSharePlaceUrl(sharePlaceUrl)
+        }
     }
 
     @SuppressLint("MissingPermission")

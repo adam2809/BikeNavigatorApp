@@ -26,7 +26,10 @@ fun DirApi.Location.distance(loc: Location): Double {
     return Navigator.EARTH_RADIUS_METERS * c
 }
 
-class Navigator(private val context: MainActivity) {
+class Navigator(
+    private val context: MainActivity,
+    private val startLocation: Location
+) {
     companion object {
         const val WAYPOINT_RADIUS = 10F
         const val EARTH_RADIUS_METERS = 6371F * 1000F
@@ -42,7 +45,14 @@ class Navigator(private val context: MainActivity) {
     var currStep: DirApi.Step? = null
     private var prevWaypoints: Pair<List<DirApi.Step>, List<DirApi.Step>>? = null
     private var writeSuccessful = false
-    var writeFirstStep = false
+
+    init {
+        Log.i(TAG, "Writing first step")
+        context.dirs.steps.let {
+            currStep = it[0]
+            writeDirData(it[1].toDir(), it[1].endLocation.distance(startLocation).toInt())
+        }
+    }
 
     private fun update() {
         if (location == null) {
@@ -72,16 +82,6 @@ class Navigator(private val context: MainActivity) {
                 TAG,
                 "Setting new ${newDir?.let { "dir=$it" } ?: ""} ${newMeters?.let { "meters=$it" } ?: ""}")
             writeDirData(newDir, newMeters)
-            writeFirstStep = false
-        }
-
-        if (writeFirstStep) {
-            Log.i(TAG, "Writing first step")
-            context.dirs.steps.let {
-                currStep = it[0]
-                writeDirData(it[1].toDir(), it[1].endLocation.distance(location!!).toInt())
-            }
-            writeFirstStep = false
         }
 
         prevWaypoints = Pair(starts, ends)

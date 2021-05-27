@@ -16,15 +16,19 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 
-class DirApi(private val context:MainActivity) {
-    private companion object{
+class DirApi(
+    private val context: MainActivity,
+    private val onSuccessCb: () -> Unit
+) {
+    private companion object {
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
         const val TAG = "Navigator";
         const val REQ_TAG = "DirApiRequest";
     }
 
-    data class TextVal(val text:String,val value:Int)
-    data class Location(val lat:Double,val lng:Double)
+    data class TextVal(val text: String, val value: Int)
+    data class Location(val lat: Double, val lng: Double)
+
     @JsonIgnoreProperties(ignoreUnknown = true)
     data class Step(
         @JsonIgnore
@@ -89,7 +93,7 @@ class DirApi(private val context:MainActivity) {
             steps =
                 mapper.readValue(stepsJson.toString().also { Log.d(REQ_TAG, "Steps array: $it") })
             steps.addIndexes()
-            context.nav.writeFirstStep = true
+            onSuccessCb()
 
             Log.i(REQ_TAG, "Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG, "New steps: $steps")
