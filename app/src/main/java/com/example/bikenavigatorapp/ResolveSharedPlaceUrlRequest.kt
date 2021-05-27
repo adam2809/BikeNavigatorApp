@@ -9,13 +9,13 @@ import com.android.volley.toolbox.HttpHeaderParser
 import java.net.HttpURLConnection
 
 
-class HeadersRequest(
+class ResolveSharePlaceUrlRequest(
     url: String,
-    private val onSuccessCb: (DirApi.Location?) -> Unit
+    onSuccessCb: (DirApi.Location) -> Unit
 ) : Request<Map<String, String>>(Method.GET, url, errorListener@{ error ->
     error?.networkResponse?.let {
         if (it.statusCode == HttpURLConnection.HTTP_MOVED_TEMP) {
-            handleRedirect(error)
+            handleRedirect(error, onSuccessCb)
         } else {
             Log.w(TAG, "Error while getting location from share place link")
             return@errorListener
@@ -26,10 +26,9 @@ class HeadersRequest(
     }
 
 }) {
-    private companion object {
+    companion object {
         const val TAG = "HeadersRequest";
     }
-
 
     private val listener: Response.Listener<Map<String, String>> = Response.Listener {
         Log.i(TAG, "Got headers: $it")
@@ -44,31 +43,32 @@ class HeadersRequest(
         listener.onResponse(response)
     }
 
+}
 
-    fun handleRedirect(error: VolleyError) {
-        val locationRedirectUrl: String = error.networkResponse?.headers?.get("Location") ?: run {
-            Log.e(TAG, "Location header missing")
-            return
-        }
-        getLocationFromRedirectUrl(locationRedirectUrl)?.let {
-            Log.w(TAG, "Extracted location from redirect url: $it")
-            onSuccessCb(it)
-        } ?: run {
-            Log.e(TAG, "Could not find location in url")
-            return
-        }
+private fun handleRedirect(error: VolleyError, onSuccessCb: (DirApi.Location) -> Unit) {
+    val locationRedirectUrl: String = error.networkResponse?.headers?.get("Location") ?: run {
+        Log.e(ResolveSharePlaceUrlRequest.TAG, "Location header missing")
+        return
+    }
+    getLocationFromRedirectUrl(locationRedirectUrl)?.let {
+        Log.w(ResolveSharePlaceUrlRequest.TAG, "Extracted location from redirect url: $it")
+        onSuccessCb(it)
+    } ?: run {
+        Log.e(ResolveSharePlaceUrlRequest.TAG, "Could not find location in url")
+        return
     }
 
+}
 
-    private fun getLocationFromRedirectUrl(url: String): DirApi.Location? {
-        val locRes = LOCATION_REGEX.find(url)
-        locRes?.groupValues?.let {
-            if (it.size != 3) {
-                return@let null
-            }
-            return DirApi.Location(it[1].toDouble(), it[2].toDouble())
-        } ?: run {
-            return null
+
+private fun getLocationFromRedirectUrl(url: String): DirApi.Location? {
+    val locRes = LOCATION_REGEX.find(url)
+    locRes?.groupValues?.let {
+        if (it.size != 3) {
+            return@let null
         }
+        return DirApi.Location(it[1].toDouble(), it[2].toDouble())
+    } ?: run {
+        return null
     }
 }

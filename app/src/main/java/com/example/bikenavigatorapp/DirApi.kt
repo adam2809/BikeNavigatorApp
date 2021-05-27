@@ -54,24 +54,6 @@ class DirApi(private val context:MainActivity) {
         }
     })
 
-    class HeadersRequest(
-        url: String,
-        private val listener: Response.Listener<Map<String, String>>,
-        errorListener: Response.ErrorListener
-    ) : Request<Map<String, String>>(Method.GET, url, errorListener) {
-        private companion object {
-            const val TAG = "HeadersRequest";
-        }
-
-        override fun parseNetworkResponse(response: NetworkResponse): Response<Map<String, String>>? {
-            Log.i(TAG, "Got response with code ${response.statusCode}")
-            return Response.success(response.headers, HttpHeaderParser.parseCacheHeaders(response))
-        }
-
-        override fun deliverResponse(response: Map<String, String>?) {
-            listener.onResponse(response)
-        }
-    }
 
     private fun JSONObject.getNonEmptyArrayElement(key: String): JSONArray? {
         val arr = (this.get(key) as JSONArray)
@@ -132,49 +114,12 @@ class DirApi(private val context:MainActivity) {
     }
 
     fun updateStepsFromSharePlaceUrl(url: String) {
-        queue.add(HeadersRequest(url, Response.Listener {
-            Log.i(TAG, "Got headers: $it")
-        }, Response.ErrorListener errorListener@{ error ->
-            error?.networkResponse?.let {
-                if (it.statusCode == HttpURLConnection.HTTP_MOVED_TEMP) {
-                    handleRedirect(error)
-                } else {
-                    Log.w(TAG, "Error while getting location from share place link")
-                    return@errorListener
-                }
-            } ?: run {
-                Log.w(TAG, "Error network response is null")
-                return@errorListener
-            }
-
-        }))
-    }
-
-    fun getLocationFromRedirectUrl(url: String): Location? {
-        val locRes = LOCATION_REGEX.find(url)
-        locRes?.groupValues?.let {
-            if (it.size != 3) {
-                return@let null
-            }
-            return Location(it[1].toDouble(), it[2].toDouble())
-        } ?: run {
-            return null
-        }
-    }
-
-    fun handleRedirect(error: VolleyError) {
-        val locationRedirectUrl: String = error.networkResponse?.headers?.get("Location") ?: run {
-            Log.e(TAG, "Location header missing")
-            return
-        }
-        getLocationFromRedirectUrl(locationRedirectUrl)?.let {
-            Log.w(TAG, "Extracted location from redirect url: $it")
+        queue.add(ResolveSharePlaceUrlRequest(url) {
             updateSteps(it)
-        } ?: run {
-            Log.e(TAG, "Could not find location in url")
-            return
-        }
+        })
     }
+
+
 
     @SuppressLint("MissingPermission")
     fun updateSteps(dest:Location) {
