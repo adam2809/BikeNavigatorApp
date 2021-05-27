@@ -38,7 +38,7 @@ class MainActivity : AppCompatActivity() {
                     nav?.location = res.locations.firstOrNull()?.also {
                         Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
                     } ?: run {
-                        stopLocationUpdates()
+                        Log.w(TAG, "Location update useless since Navigator is null")
                         return@let
                     }
                 } ?: Log.w(TAG, "Location result is null")
@@ -49,7 +49,7 @@ class MainActivity : AppCompatActivity() {
     val dirDisplay = BleDirDisplay(this)
     lateinit var dirs: DirApi
     var nav: Navigator? = null
-    val locClient: FusedLocationProviderClient by lazy {
+    private val locClient: FusedLocationProviderClient by lazy {
         LocationServices.getFusedLocationProviderClient(
             this
         )
@@ -100,8 +100,8 @@ class MainActivity : AppCompatActivity() {
     private fun startNewNav(sharePlaceUrl: String) {
         locClient.lastLocation.addOnSuccessListener listener@{ currLoc ->
             dirs = DirApi(this) {
+                nav = Navigator(dirs.steps, currLoc, dirDisplay)
                 startLocationUpdates()
-                nav = Navigator(this, currLoc)
             }
             dirs.updateSteps(DirApi.Location(currLoc.latitude, currLoc.longitude), sharePlaceUrl)
         }

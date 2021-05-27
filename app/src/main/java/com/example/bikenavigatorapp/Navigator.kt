@@ -27,8 +27,9 @@ fun DirApi.Location.distance(loc: Location): Double {
 }
 
 class Navigator(
-    private val context: MainActivity,
-    private val startLocation: Location
+    private val steps: List<DirApi.Step>,
+    private val startLocation: Location,
+    private val dirDisplay: BleDirDisplay
 ) {
     companion object {
         const val WAYPOINT_RADIUS = 10F
@@ -48,7 +49,7 @@ class Navigator(
 
     init {
         Log.i(TAG, "Writing first step")
-        context.dirs.steps.let {
+        steps.let {
             currStep = it[0]
             writeDirData(it[1].toDir(), it[1].endLocation.distance(startLocation).toInt())
         }
@@ -70,7 +71,7 @@ class Navigator(
         val index = currStep?.index?.plus(1)
         val newDir: BleDirDisplay.Dir? = when {
             !isStepUpdate -> null
-            index != null && index < context.dirs.steps.size -> context.dirs.steps[index].toDir()
+            index != null && index < steps.size -> steps[index].toDir()
             currStep == null -> BleDirDisplay.Dir.NO_DIR
             else -> currStep?.toDir()
         }
@@ -88,7 +89,7 @@ class Navigator(
     }
 
     private fun writeDirData(dir: BleDirDisplay.Dir?, meters: Int?) {
-        context.dirDisplay.let {
+        dirDisplay.let {
             writeSuccessful = it.writeDir(BleDirDisplay.DirData(
                 dir.let { dir } ?: it.targetDirData.dir,
                 meters.let { meters } ?: it.targetDirData.meters
@@ -98,10 +99,10 @@ class Navigator(
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
         return Pair(
-            context.dirs.steps.filter {
+            steps.filter {
                 it.startLocation.distance(loc) < WAYPOINT_RADIUS
             },
-            context.dirs.steps.filter {
+            steps.filter {
                 it.endLocation.distance(loc) < WAYPOINT_RADIUS
             }
         )
@@ -145,7 +146,7 @@ class Navigator(
         currStep?.let {
             val currDistance = it.endLocation.distance(location!!)
             if (abs(
-                    currDistance - (context.dirDisplay.targetDirData.meters)
+                    currDistance - (dirDisplay.targetDirData.meters)
                 ) > METERS_DISPLAY_INTERVAL
             ) {
                 return currDistance.toInt()

@@ -18,7 +18,7 @@ import java.net.URL
 
 
 class DirApi(
-    private val context: Context,
+    context: Context,
     private val onSuccessCb: () -> Unit
 ) {
     private companion object {
