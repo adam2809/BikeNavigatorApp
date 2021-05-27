@@ -1,6 +1,7 @@
 package com.example.bikenavigatorapp
 
 import android.annotation.SuppressLint
+import android.content.Context
 import android.util.Log
 import com.android.volley.*
 import com.android.volley.toolbox.*
@@ -17,7 +18,7 @@ import java.net.URL
 
 
 class DirApi(
-    private val context: MainActivity,
+    private val context: Context,
     private val onSuccessCb: () -> Unit
 ) {
     private companion object {
@@ -113,25 +114,26 @@ class DirApi(
         }
     )
 
-    private fun getUrlParams(origin:Location,dest:Location): String {
+    private fun getUrlParams(origin: Location, dest: Location): String {
         return "origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
     }
 
-    fun updateStepsFromSharePlaceUrl(url: String) {
-        queue.add(ResolveSharePlaceUrlRequest(url) {
-            updateSteps(it)
+    fun updateSteps(start: Location, destUrl: String) {
+        queue.add(ResolveSharePlaceUrlRequest(destUrl) {
+            updateSteps(start, it)
         })
     }
 
 
-
     @SuppressLint("MissingPermission")
-    fun updateSteps(dest:Location) {
-        context.locClient.lastLocation.addOnSuccessListener listener@{ res ->
-            queue.add(DirApiRequest(getUrlParams(
-                Location(res.latitude,res.longitude),
-                dest
-            )))
-        }
+    fun updateSteps(start: Location, dest: Location) {
+        queue.add(
+            DirApiRequest(
+                getUrlParams(
+                    start,
+                    dest
+                )
+            )
+        )
     }
 }

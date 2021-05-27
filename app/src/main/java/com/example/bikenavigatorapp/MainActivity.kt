@@ -98,12 +98,12 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun startNewNav(sharePlaceUrl: String) {
-        locClient.lastLocation.addOnSuccessListener listener@{ res ->
+        locClient.lastLocation.addOnSuccessListener listener@{ currLoc ->
             dirs = DirApi(this) {
                 startLocationUpdates()
-                nav = Navigator(this, res)
+                nav = Navigator(this, currLoc)
             }
-            dirs.updateStepsFromSharePlaceUrl(sharePlaceUrl)
+            dirs.updateSteps(DirApi.Location(currLoc.latitude, currLoc.longitude), sharePlaceUrl)
         }
     }
 
