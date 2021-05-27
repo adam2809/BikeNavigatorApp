@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import android.os.Looper
 import android.util.Log
@@ -58,6 +59,10 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+
+        if (!hasLocationPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            requestLocationPermissions()
+        }
 
         if (intent == null) {
             Log.i(TAG, "Intent is null")

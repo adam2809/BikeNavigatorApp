@@ -3,14 +3,14 @@ package com.example.bikenavigatorapp
 import android.bluetooth.*
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
+import android.content.Context
 import android.content.Intent
-import android.os.Build
 import android.os.Handler
 import android.util.Log
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
-class BleDirDisplay(private val context: MainActivity) {
+class BleDirDisplay(private val context: Context) {
     companion object {
         const val TAG = "BleDirDisplay"
         const val SCAN_PERIOD: Long = 500;
@@ -76,9 +76,6 @@ class BleDirDisplay(private val context: MainActivity) {
 
 
     fun initiateScan() {
-        if (!context.hasLocationPermissions() && Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            context.requestLocationPermissions()
-        }
         scanLeDevice { res ->
             bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)
         }
@@ -147,7 +144,7 @@ class BleDirDisplay(private val context: MainActivity) {
     }
 
     private fun isBtDeviceReadyForAccess(): Boolean {
-        return displayCharacteristic != null // && bluetoothManager?.getConnectionState(bluetoothGatt?.device) == BluetoothProfile.STATE_CONNECTED
+        return displayCharacteristic != null
     }
 
     fun writeDir(dirData: DirData): Boolean {
