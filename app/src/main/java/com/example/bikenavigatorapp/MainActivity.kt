@@ -100,7 +100,7 @@ class MainActivity : AppCompatActivity() {
     private fun startNewNav(sharePlaceUrl: String) {
         locClient.lastLocation.addOnSuccessListener listener@{ currLoc ->
             dirs = DirApi(this) {
-                nav = Navigator(dirs.steps, currLoc, dirDisplay)
+                nav = Navigator(it, currLoc, dirDisplay)
                 startLocationUpdates()
             }
             dirs.updateSteps(DirApi.Location(currLoc.latitude, currLoc.longitude), sharePlaceUrl)

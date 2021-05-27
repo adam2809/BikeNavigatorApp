@@ -19,7 +19,7 @@ import java.net.URL
 
 class DirApi(
     context: Context,
-    private val onSuccessCb: () -> Unit
+    private val onSuccessCb: (List<Step>) -> Unit
 ) {
     private companion object {
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
@@ -49,7 +49,6 @@ class DirApi(
     }
 
     private val mapper = jacksonObjectMapper()
-    var steps = emptyList<Step>()
     private val queue: RequestQueue = Volley.newRequestQueue(context, object : HurlStack() {
         @Throws(IOException::class)
         override fun createConnection(url: URL?): HttpURLConnection {
@@ -70,7 +69,7 @@ class DirApi(
     }
 
     private fun List<Step>.addIndexes() {
-        steps.forEachIndexed { i, step ->
+        this.forEachIndexed { i, step ->
             step.index = i
         }
     }
@@ -91,13 +90,14 @@ class DirApi(
             }.getNonEmptyArrayElement("steps") ?: return@resListener
 
 
-            steps =
-                mapper.readValue(stepsJson.toString().also { Log.d(REQ_TAG, "Steps array: $it") })
+            val steps = mapper.readValue<List<Step>>(
+                stepsJson.toString().also { Log.d(REQ_TAG, "Steps array: $it") })
             steps.addIndexes()
-            onSuccessCb()
 
             Log.i(REQ_TAG, "Steps successfully updated new count is ${steps.size}")
             Log.d(REQ_TAG, "New steps: $steps")
+
+            onSuccessCb(steps)
         },
         { error ->
             error.networkResponse.let {
