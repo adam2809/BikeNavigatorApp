@@ -10,7 +10,6 @@ import android.util.Log
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
-//TODO set characteristic to null on disconnect
 class BleDirDisplay(private val context: Context) {
     companion object {
         const val TAG = "BleDirDisplay"
@@ -77,9 +76,19 @@ class BleDirDisplay(private val context: Context) {
 
                     gatt.discoverServices()
                 }
-                BluetoothProfile.STATE_DISCONNECTED -> Log.i(TAG, "Disconnected from GATT server.")
-                BluetoothProfile.STATE_CONNECTING -> Log.i(TAG, "Disconnected from GATT server.")
-                BluetoothProfile.STATE_DISCONNECTING -> Log.i(TAG, "Disconnected from GATT server.")
+                BluetoothProfile.STATE_DISCONNECTED -> {
+                    Log.i(TAG, "Disconnected from GATT server.")
+
+                    bluetoothGatt = null
+                    displayCharacteristic = null
+                }
+                BluetoothProfile.STATE_CONNECTING -> Log.i(TAG, "Connecting to GATT server.")
+                BluetoothProfile.STATE_DISCONNECTING -> {
+                    Log.i(TAG, "Disconnecting from GATT server.")
+
+                    bluetoothGatt = null
+                    displayCharacteristic = null
+                }
             }
             sendUpdateGattStateBroadcast(newState)
         }

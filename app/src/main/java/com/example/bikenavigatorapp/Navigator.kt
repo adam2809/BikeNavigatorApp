@@ -5,8 +5,6 @@ import android.util.Log
 import kotlin.math.*
 //TODO fix activity lifecycles - do not reinit bledirdisp since it breaks the gatt connection
 //TODO ask for background location permissions
-//TODO the navigator should set the tagret dir data of dirDisplay and there should be a seperate retry task for sending target dir display data
-//TODO constantly sending new data
 fun Location.toRadians(): Pair<Double, Double> {
     return Pair(latitude * Math.PI / 180, longitude * Math.PI / 180)
 }
