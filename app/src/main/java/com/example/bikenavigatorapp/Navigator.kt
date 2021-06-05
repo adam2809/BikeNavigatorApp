@@ -71,7 +71,7 @@ class Navigator(
         )
         Log.d(TAG, "Current step = $currStep")
 
-        updateCurrStep(starts, ends)
+        val isNewStep = updateCurrStep(starts, ends)
         val index = currStep?.index?.plus(1)
         val newDir: BleDirDisplay.Dir? = when {
             index != null && index < steps.size -> steps[index].toDir()
@@ -81,7 +81,7 @@ class Navigator(
 
         val newMeters: Int? = checkForNewMeters()
 
-        if (newDir != null || newMeters != null) {
+        if ((newDir != null && isNewStep) || newMeters != null) {
             Log.d(
                 TAG,
                 "Setting new ${newDir?.let { "dir=$it" } ?: ""} ${newMeters?.let { "meters=$it" } ?: ""}")

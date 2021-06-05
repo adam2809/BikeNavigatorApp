@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
 
+//TODO set characteristic to null on disconnect
 class BleDirDisplay(private val context: Context) {
     companion object {
         const val TAG = "BleDirDisplay"
@@ -180,6 +181,7 @@ class BleDirDisplay(private val context: Context) {
             Log.w(TAG, "Attempting to access device which is not ready")
             isTargetWritten = false
         }
+
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
             displayCharacteristic?.value = ByteArray(5).apply {
@@ -196,7 +198,6 @@ class BleDirDisplay(private val context: Context) {
                 return
             })
         } ?: Log.e(TAG, "Unable to write $targetDirData")
-        isTargetWritten = false
     }
 
     private fun sendUpdateGattStateBroadcast(state: Int) {
