@@ -6,6 +6,7 @@ import kotlin.math.*
 //TODO fix activity lifecycles - do not reinit bledirdisp since it breaks the gatt connection
 //TODO ask for background location permissions
 //TODO the navigator should set the tagret dir data of dirDisplay and there should be a seperate retry task for sending target dir display data
+//TODO constantly sending new data
 fun Location.toRadians(): Pair<Double, Double> {
     return Pair(latitude * Math.PI / 180, longitude * Math.PI / 180)
 }
@@ -134,9 +135,25 @@ class Navigator(
 
     private fun DirApi.Step.toDir(): BleDirDisplay.Dir {
         return when (this.maneuver) {
-            "turn-left" -> BleDirDisplay.Dir.LEFT
-            "turn-right" -> BleDirDisplay.Dir.RIGHT
-            else -> BleDirDisplay.Dir.STRAIGHT
+            "turn-sharp-left" -> BleDirDisplay.Dir.TURN_SHARP_LEFT
+            "uturn-right" -> BleDirDisplay.Dir.UTURN_RIGHT
+            "turn-slight-right" -> BleDirDisplay.Dir.TURN_SLIGHT_RIGHT
+            "merge" -> BleDirDisplay.Dir.MERGE
+            "roundabout-left" -> BleDirDisplay.Dir.ROUNDABOUT_LEFT
+            "roundabout-right" -> BleDirDisplay.Dir.ROUNDABOUT_RIGHT
+            "uturn-left" -> BleDirDisplay.Dir.UTURN_LEFT
+            "turn-slight-left" -> BleDirDisplay.Dir.TURN_SLIGHT_LEFT
+            "turn-left" -> BleDirDisplay.Dir.TURN_LEFT
+            "ramp-right" -> BleDirDisplay.Dir.RAMP_RIGHT
+            "turn-right" -> BleDirDisplay.Dir.TURN_RIGHT
+            "fork-right" -> BleDirDisplay.Dir.FORK_RIGHT
+            "straight" -> BleDirDisplay.Dir.STRAIGHT
+            "fork-left" -> BleDirDisplay.Dir.FORK_LEFT
+            "ferry-train" -> BleDirDisplay.Dir.FERRY_TRAIN
+            "turn-sharp-right" -> BleDirDisplay.Dir.TURN_SHARP_RIGHT
+            "ramp-left" -> BleDirDisplay.Dir.RAMP_LEFT
+            "ferry" -> BleDirDisplay.Dir.FERRY
+            else -> BleDirDisplay.Dir.NO_DIR
         }
     }
 

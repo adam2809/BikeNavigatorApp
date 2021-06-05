@@ -26,9 +26,24 @@ class BleDirDisplay(private val context: Context) {
 
     enum class Dir {
         NO_DIR,
-        RIGHT,
+        TURN_SHARP_LEFT,
+        UTURN_RIGHT,
+        TURN_SLIGHT_RIGHT,
+        MERGE,
+        ROUNDABOUT_LEFT,
+        ROUNDABOUT_RIGHT,
+        UTURN_LEFT,
+        TURN_SLIGHT_LEFT,
+        TURN_LEFT,
+        RAMP_RIGHT,
+        TURN_RIGHT,
+        FORK_RIGHT,
         STRAIGHT,
-        LEFT
+        FORK_LEFT,
+        FERRY_TRAIN,
+        TURN_SHARP_RIGHT,
+        RAMP_LEFT,
+        FERRY
     }
 
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
@@ -176,7 +191,10 @@ class BleDirDisplay(private val context: Context) {
                     this[4] = (it shr 0).toByte()
                 }
             }
-            isTargetWritten = gatt.writeCharacteristic(displayCharacteristic)
+            isTargetWritten = gatt.writeCharacteristic(displayCharacteristic ?: run {
+                isTargetWritten = false
+                return
+            })
         } ?: Log.e(TAG, "Unable to write $targetDirData")
         isTargetWritten = false
     }
@@ -195,13 +213,13 @@ class BleDirDisplay(private val context: Context) {
     }
 
     fun left() {
-        targetDirData = DirData(Dir.STRAIGHT, 100)
+        targetDirData = DirData(Dir.TURN_LEFT, 65)
         writeTargetDir()
 
     }
 
     fun right() {
-        targetDirData = DirData(Dir.RIGHT, 32)
+        targetDirData = DirData(Dir.TURN_RIGHT, 32)
         writeTargetDir()
     }
 
