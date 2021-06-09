@@ -34,6 +34,14 @@ class MainActivity : AppCompatActivity() {
             val binder = service as LocalBinder
             mService = binder.service
             mBound = true
+
+            destUrl?.let {
+                if (nav == null) {
+                    startNewNav(it)
+                }
+            } ?: run {
+                Log.w(TAG, "Tried starting new nav without dest share place url")
+            }
         }
 
         override fun onServiceDisconnected(name: ComponentName) {
@@ -45,6 +53,7 @@ class MainActivity : AppCompatActivity() {
     val dirDisplay = BleDirDisplay(this)
     lateinit var dirs: DirApi
     var nav: Navigator? = null
+    var destUrl: String? = null
 
     // A reference to the service used to get location updates.
     private var mService: LocationUpdatesService? = null
@@ -65,7 +74,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         when (intent?.action) {
-            Intent.ACTION_SEND -> startNavFromGMapsShare()
+            Intent.ACTION_SEND -> destUrl = getSharePlaceUrlFromIntent()
         }
 
         registerGattConnStateChangeReceiver()
@@ -109,32 +118,29 @@ class MainActivity : AppCompatActivity() {
         dirDisplay.bluetoothGatt?.disconnect()
     }
 
-    private fun startNavFromGMapsShare() {
+    private fun getSharePlaceUrlFromIntent(): String? {
         val text = intent.extras?.get("android.intent.extra.TEXT")?.toString() ?: run {
             Log.w(TAG, "Intent is missing TEXT extra")
-            return
+            return null
         }
         val urlResult = HTTPS_REGEX.find(text)
         val url = urlResult?.groupValues?.firstOrNull() ?: run {
             Log.w(TAG, "Could not find url in TEXT extra")
-            return
+            return null
         }
         Log.i(TAG, "URL is: $url")
-        startNewNav(url)
+        return url
     }
 
     @SuppressLint("MissingPermission")
     private fun startNewNav(sharePlaceUrl: String) {
         mService?.let { service ->
-            service.updateLastLocation()
-            service.mLocation?.let { loc ->
+            service.updateLastLocation { loc ->
                 dirs = DirApi(this) {
                     nav = Navigator(it, loc, dirDisplay)
                     service.requestLocationUpdates()
                 }
                 dirs.updateSteps(DirApi.Location(loc.latitude, loc.longitude), sharePlaceUrl)
-            } ?: run {
-                Log.e(TAG, "Could not get initial location")
             }
         } ?: run {
             Log.e(TAG, "mService is null")
@@ -178,6 +184,7 @@ class MainActivity : AppCompatActivity() {
                     Log.w(TAG, "Location update useless since Navigator is null")
                     return
                 }
+                dirDisplay.update()
             }
         }
 
