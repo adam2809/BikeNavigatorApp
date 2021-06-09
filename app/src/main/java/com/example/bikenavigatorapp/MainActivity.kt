@@ -5,57 +5,52 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothProfile
-import android.content.BroadcastReceiver
-import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
+import android.content.*
 import android.content.pm.PackageManager
+import android.location.Location
 import android.os.Build
 import android.os.Bundle
-import android.os.Looper
+import android.os.IBinder
 import android.util.Log
 import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import com.google.android.gms.location.*
+import androidx.localbroadcastmanager.content.LocalBroadcastManager
+import com.example.bikenavigatorapp.LocationUpdatesService.LocalBinder
 
 
+//TODO like this private static final String TAG = LocationUpdatesService.class.getSimpleName(); everywhere
 class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity";
         private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
-        const val GATT_CONN_STATE_CHANGE_ACTION =
-            "com.example.bikenavigatorapp.GATT_CONN_STATE_CHANGE_ACTION"
-        const val GATT_CONN_STATE_CHANGE_EXTRA =
-            "com.example.bikenavigatorapp.GATT_CONN_STATE_CHANGE_EXTRA"
     }
 
-    private val locationCb by lazy {
-        object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult?) {
-                locationResult?.let { res ->
-                    nav?.location = res.locations.firstOrNull()?.also {
-                        Log.d(TAG, "Got location: ${it.latitude}, ${it.longitude}")
-                        dirDisplay.update()
-                    } ?: run {
-                        Log.w(TAG, "Location update useless since Navigator is null")
-                        return@let
-                    }
-                } ?: Log.w(TAG, "Location result is null")
-            }
+    // Monitors the state of the connection to the service.
+    private val mServiceConnection: ServiceConnection = object : ServiceConnection {
+        override fun onServiceConnected(name: ComponentName, service: IBinder) {
+            val binder = service as LocalBinder
+            mService = binder.service
+            mBound = true
+        }
+
+        override fun onServiceDisconnected(name: ComponentName) {
+            mService = null
+            mBound = false
         }
     }
 
     val dirDisplay = BleDirDisplay(this)
     lateinit var dirs: DirApi
     var nav: Navigator? = null
-    private val locClient: FusedLocationProviderClient by lazy {
-        LocationServices.getFusedLocationProviderClient(
-            this
-        )
-    }
+
+    // A reference to the service used to get location updates.
+    private var mService: LocationUpdatesService? = null
+
+    // Tracks the bound state of the service.
+    private var mBound = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -74,6 +69,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         registerGattConnStateChangeReceiver()
+        registerLocationUpdateReceiver()
         updateConnectionStatusTextView(BluetoothProfile.STATE_DISCONNECTED)
     }
 
@@ -82,9 +78,34 @@ class MainActivity : AppCompatActivity() {
         promptEnableBluetooth()
     }
 
+    override fun onStart() {
+        val res = bindService(
+            Intent(this, LocationUpdatesService::class.java), mServiceConnection,
+            BIND_AUTO_CREATE
+        )
+        if (res) {
+            Log.i(TAG, "Successfully bound service")
+        } else {
+            Log.w(TAG, "Failed bound service")
+        }
+        super.onStart()
+    }
+
+    override fun onStop() {
+        if (mBound) {
+            // Unbind from the service. This signals to the service that this activity is no longer
+            // in the foreground, and the service can respond by promoting itself to a foreground
+            // service.
+            Log.i(TAG, "Unbinding service")
+            unbindService(mServiceConnection);
+            mBound = false;
+        }
+
+        super.onStop()
+    }
+
     override fun onDestroy() {
         super.onDestroy()
-        stopLocationUpdates()
         dirDisplay.bluetoothGatt?.disconnect()
     }
 
@@ -104,41 +125,20 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun startNewNav(sharePlaceUrl: String) {
-        locClient.lastLocation.addOnSuccessListener listener@{ currLoc ->
-            dirs = DirApi(this) {
-                nav = Navigator(it, currLoc, dirDisplay)
-                startLocationUpdates()
+        mService?.let { service ->
+            service.updateLastLocation()
+            service.mLocation?.let { loc ->
+                dirs = DirApi(this) {
+                    nav = Navigator(it, loc, dirDisplay)
+                    service.requestLocationUpdates()
+                }
+                dirs.updateSteps(DirApi.Location(loc.latitude, loc.longitude), sharePlaceUrl)
+            } ?: run {
+                Log.e(TAG, "Could not get initial location")
             }
-            dirs.updateSteps(DirApi.Location(currLoc.latitude, currLoc.longitude), sharePlaceUrl)
+        } ?: run {
+            Log.e(TAG, "mService is null")
         }
-    }
-
-    @SuppressLint("MissingPermission")
-    fun startLocationUpdates() {
-        Log.i(TAG, "Starting location updates")
-
-        if (!hasLocationPermissions()) {
-            Log.w(TAG, "No location permissions")
-            requestLocationPermissions()
-        }
-
-        locClient.requestLocationUpdates(
-            LocationRequest.create().apply {
-                priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-                interval = 2000
-            },
-            locationCb,
-            Looper.getMainLooper()
-        ).addOnSuccessListener {
-            Log.i(TAG, "Location updates request successful")
-        }.addOnFailureListener {
-            Log.e(TAG, "Location updates request failed")
-        }
-    }
-
-    private fun stopLocationUpdates() {
-        Log.i(TAG, "Stopping location updates")
-        locClient.removeLocationUpdates(locationCb)
     }
 
     private fun promptEnableBluetooth() {
@@ -152,15 +152,39 @@ class MainActivity : AppCompatActivity() {
         val gattConnStateChangeBr = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 updateConnectionStatusTextView(
-                    intent?.extras?.getInt(GATT_CONN_STATE_CHANGE_EXTRA) ?: run {
+                    intent?.extras?.getInt(BleDirDisplay.GATT_CONN_STATE_CHANGE_EXTRA) ?: run {
                         Log.w(TAG, "No GATT_CONN_STATE_CHANGE_EXTRA provided")
                         return
                     })
             }
         }
 
-        val filter = IntentFilter(GATT_CONN_STATE_CHANGE_ACTION)
+        val filter = IntentFilter(BleDirDisplay.GATT_CONN_STATE_CHANGE_ACTION)
         registerReceiver(gattConnStateChangeBr, filter)
+    }
+
+    private fun registerLocationUpdateReceiver() {
+        val locUpdateBr = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent) {
+                val loc: Location =
+                    intent.getParcelableExtra(LocationUpdatesService.LOCATION_UPDATE_EXTRA) ?: run {
+                        Log.w(TAG, "No LOCATION_UPDATE_EXTRA provided")
+                        return
+                    }
+
+                nav?.let {
+                    it.location = loc
+                } ?: run {
+                    Log.w(TAG, "Location update useless since Navigator is null")
+                    return
+                }
+            }
+        }
+
+        val filter = IntentFilter(LocationUpdatesService.LOCATION_UPDATE_ACTION)
+        registerReceiver(locUpdateBr, filter)
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(locUpdateBr, filter);
     }
 
     fun updateConnectionStatusTextView(state: Int) {
@@ -196,11 +220,11 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun hasLocationPermissions(): Boolean {
+    private fun hasLocationPermissions(): Boolean {
         return hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     }
 
-    fun requestLocationPermissions() {
+    private fun requestLocationPermissions() {
         ActivityCompat.requestPermissions(
             this,
             arrayOf(

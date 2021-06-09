@@ -20,6 +20,9 @@ class BleDirDisplay(private val context: Context) {
         const val GATT_STATE_SCANNING = 4;
         const val GATT_STATE_SCAN_SUCCESS = 5;
         const val GATT_STATE_SCAN_FAIL = 6;
+        private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
+        const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
+        const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
     }
 
     data class DirData(val dir: Dir, val meters: Int)
@@ -211,8 +214,8 @@ class BleDirDisplay(private val context: Context) {
 
     private fun sendUpdateGattStateBroadcast(state: Int) {
         Intent().also {
-            it.action = MainActivity.GATT_CONN_STATE_CHANGE_ACTION
-            it.putExtra(MainActivity.GATT_CONN_STATE_CHANGE_EXTRA, state)
+            it.action = GATT_CONN_STATE_CHANGE_ACTION
+            it.putExtra(GATT_CONN_STATE_CHANGE_EXTRA, state)
             context.sendBroadcast(it)
         }
     }
