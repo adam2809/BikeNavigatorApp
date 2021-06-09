@@ -43,16 +43,16 @@ class Navigator(
             field = value
             update()
         }
-    private var currStep: DirApi.Step? = null
+    private var step: DirApi.Step? = null
     private var prevWaypoints: Pair<List<DirApi.Step>, List<DirApi.Step>>? = null
 
     init {
         Log.i(TAG, "Writing first step")
         steps.let {
-            currStep = it[0]
+            step = it[0]
             dirDisplay.targetDirData = BleDirDisplay.DirData(
                 it[1].toDir(),
-                it[1].endLocation.distance(startLocation).toInt()
+                it[0].endLocation.distance(startLocation).toInt()
             )
         }
     }
@@ -62,9 +62,9 @@ class Navigator(
             return
         }
 
-        val newMeters: Int? = checkForNewMeters()
+        val meters: Int? = checkForNewMeters()
 
-        newMeters?.let {
+        meters?.let {
             Log.d(TAG, "Setting new meters=$it")
             dirDisplay.let { disp ->
                 disp.targetDirData = BleDirDisplay.DirData(
@@ -74,45 +74,37 @@ class Navigator(
             }
         }
 
-        if (checkStepByBounds()) {
-            Log.d(TAG, "Found step by bounds: $currStep")
-            return
-        } else {
-            Log.d(TAG, "Could not find step by bounds")
-        }
-
         val (starts, ends) = findNearbyWaypoints(location!!)
-        Log.d(
-            TAG,
-            "Found nearby waypoints: starts=${starts.map { it.startLocation.toString() }} ends=${ends.map { it.startLocation.toString() }}"
-        )
-        Log.d(TAG, "Current step = $currStep")
-
-        updateCurrStep(starts, ends)
-        val index = currStep?.index?.plus(1)
-        val newDir: BleDirDisplay.Dir? = when {
-            index != null && index < steps.size -> steps[index].toDir()
-            currStep == null -> BleDirDisplay.Dir.NO_DIR
-            else -> currStep?.toDir()
+        if (updateStepByWaypoints(starts, ends)) {
+            Log.d(TAG, "By waypoint step search succeeded")
         }
 
-        newDir?.let {
-            Log.d(TAG, "Setting new dir=$it")
 
-            dirDisplay.let { disp ->
-                disp.targetDirData = BleDirDisplay.DirData(
-                    it,
-                    disp.targetDirData.meters
-                )
-            }
+        if (checkStepByBounds()) {
+            Log.d(TAG, "By bounds step search succeeded")
+        }
+
+        Log.d(TAG, "Current step = $step")
+
+        val index = step?.index ?: run {
+            Log.w(TAG, "Step $step does not have an index")
+        }
+        val dir: BleDirDisplay.Dir = when {
+            step == null -> BleDirDisplay.Dir.NO_DIR
+            index < steps.lastIndex -> steps[index + 1].toDir()
+            else -> step?.toDir() ?: BleDirDisplay.Dir.NO_DIR
+        }
+        Log.d(TAG, "Dir is $dir")
+
+        dirDisplay.let {
+            it.targetDirData = BleDirDisplay.DirData(
+                dir,
+                meters ?: it.targetDirData.meters
+            )
         }
 
         prevWaypoints = Pair(starts, ends)
     }
-
-//    private fun getCurrDir():BleDirDisplay.Dir{
-//
-//    }
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
         return Pair(
@@ -125,15 +117,15 @@ class Navigator(
         )
     }
 
-    private fun updateCurrStep(starts: List<DirApi.Step>, ends: List<DirApi.Step>): Boolean {
+    private fun updateStepByWaypoints(starts: List<DirApi.Step>, ends: List<DirApi.Step>): Boolean {
         val (prevStarts, prevEnds) = prevWaypoints ?: Pair(null, null)
         var ret = false
 
         if (prevEnds.isNullOrEmpty() && ends.isNotEmpty()) {
             ends.first().let {
-                if (currStep != null) {
-                    Log.i(TAG, "Ending step: $currStep")
-                    currStep = null
+                if (step != null) {
+                    Log.i(TAG, "Ending step: $step")
+                    step = null
                     ret = true
                 }
             }
@@ -141,9 +133,9 @@ class Navigator(
 
         if (prevStarts.isNullOrEmpty() && starts.isNotEmpty()) {
             starts.first().let {
-                if (currStep == null) {
+                if (step == null) {
                     Log.i(TAG, "Starting step: $it")
-                    currStep = it
+                    step = it
                     ret = true
                 }
             }
@@ -176,7 +168,7 @@ class Navigator(
     }
 
     private fun checkForNewMeters(): Int? {
-        currStep?.let {
+        step?.let {
             val currDistance = it.endLocation.distance(location!!)
             if (abs(
                     currDistance - (dirDisplay.targetDirData.meters)
@@ -188,7 +180,7 @@ class Navigator(
         return null
     }
 
-    private val CORRIDOR_WIDTH = BigDecimal("50")
+    private val CORRIDOR_WIDTH = BigDecimal("100")
     private val METERS_TO_ARC_COEFF = BigDecimal("0.000008999280057498208")
 
     data class Line(val inc: BigDecimal, val lng: BigDecimal) {
@@ -211,7 +203,7 @@ class Navigator(
                 DirApi.Location(l.latitude, l.longitude)
             } ?: return false
             if (isPointInBounds(it.startLocation, it.endLocation, loc)) {
-                currStep = it
+                step = it
                 return true
             }
         }
@@ -244,16 +236,18 @@ class Navigator(
             lineStartEnd.lng - (CORRIDOR_WIDTH / BigDecimal("2")) * METERS_TO_ARC_COEFF
         );
 
-        return ((isPointBetweenLines(
+        val isPointBetweenStartAndEnd = isPointBetweenLines(
             boundLine1, boundLine2,
             pointLat, pointLng,
             startLat, startLng
         ) &&
                 start.distance(end).let {
-                    point.distance(start) <= it &&
-                            point.distance(end) <= it
-                }) || point.distance(end) < WAYPOINT_RADIUS) &&
-                point.distance(start) >= WAYPOINT_RADIUS;
+                    point.distance(start) <= it && point.distance(end) <= it
+                }
+
+        return (isPointBetweenStartAndEnd || point.distance(start) < WAYPOINT_RADIUS) && point.distance(
+            end
+        ) >= WAYPOINT_RADIUS
     }
 
     private fun isPointBetweenLines(
