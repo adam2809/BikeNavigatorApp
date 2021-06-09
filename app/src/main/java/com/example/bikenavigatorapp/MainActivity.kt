@@ -115,9 +115,11 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     fun startLocationUpdates() {
+        Log.i(TAG, "Starting location updates")
+
         if (!hasLocationPermissions()) {
+            Log.w(TAG, "No location permissions")
             requestLocationPermissions()
-            return
         }
 
         locClient.requestLocationUpdates(
@@ -135,6 +137,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun stopLocationUpdates() {
+        Log.i(TAG, "Stopping location updates")
         locClient.removeLocationUpdates(locationCb)
     }
 
