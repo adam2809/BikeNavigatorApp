@@ -2,20 +2,15 @@ package com.example.bikenavigatorapp
 
 import android.location.Location
 import android.util.Log
+import java.math.BigDecimal
 import kotlin.math.*
-//TODO fix activity lifecycles - do not reinit bledirdisp since it breaks the gatt connection
-//TODO ask for background location permissions
-fun Location.toRadians(): Pair<Double, Double> {
-    return Pair(latitude * Math.PI / 180, longitude * Math.PI / 180)
-}
-
 
 fun DirApi.Location.toRadians(): Pair<Double, Double> {
     return Pair(lat * Math.PI / 180, lng * Math.PI / 180)
 }
 
 
-fun DirApi.Location.distance(loc: Location): Double {
+fun DirApi.Location.distance(loc: DirApi.Location): Double {
     val (f1, l1) = this.toRadians()
     val (f2, l2) = loc.toRadians()
     val (df, dl) = Pair(abs(f1 - f2), abs(l1 - l2))
@@ -24,6 +19,10 @@ fun DirApi.Location.distance(loc: Location): Double {
     val c = atan2(sqrt(a), sqrt(1 - a))
 
     return Navigator.EARTH_RADIUS_METERS * c
+}
+
+fun DirApi.Location.distance(loc: Location): Double {
+    return this.distance(DirApi.Location(loc.latitude, loc.longitude))
 }
 
 class Navigator(
@@ -37,6 +36,7 @@ class Navigator(
         const val TAG = "Navigator"
         const val METERS_DISPLAY_INTERVAL = 2
     }
+
 
     var location: Location? = null
         set(value) {
@@ -62,6 +62,25 @@ class Navigator(
             return
         }
 
+        val newMeters: Int? = checkForNewMeters()
+
+        newMeters?.let {
+            Log.d(TAG, "Setting new meters=$it")
+            dirDisplay.let { disp ->
+                disp.targetDirData = BleDirDisplay.DirData(
+                    disp.targetDirData.dir,
+                    it
+                )
+            }
+        }
+
+        if (checkStepByBounds()) {
+            Log.d(TAG, "Found step by bounds: $currStep")
+            return
+        } else {
+            Log.d(TAG, "Could not find step by bounds")
+        }
+
         val (starts, ends) = findNearbyWaypoints(location!!)
         Log.d(
             TAG,
@@ -69,7 +88,7 @@ class Navigator(
         )
         Log.d(TAG, "Current step = $currStep")
 
-        val isNewStep = updateCurrStep(starts, ends)
+        updateCurrStep(starts, ends)
         val index = currStep?.index?.plus(1)
         val newDir: BleDirDisplay.Dir? = when {
             index != null && index < steps.size -> steps[index].toDir()
@@ -77,22 +96,23 @@ class Navigator(
             else -> currStep?.toDir()
         }
 
-        val newMeters: Int? = checkForNewMeters()
+        newDir?.let {
+            Log.d(TAG, "Setting new dir=$it")
 
-        if ((newDir != null && isNewStep) || newMeters != null) {
-            Log.d(
-                TAG,
-                "Setting new ${newDir?.let { "dir=$it" } ?: ""} ${newMeters?.let { "meters=$it" } ?: ""}")
-            dirDisplay.let {
-                it.targetDirData = BleDirDisplay.DirData(
-                    newMeters.let { newDir } ?: it.targetDirData.dir,
-                    newMeters.let { newMeters } ?: it.targetDirData.meters
+            dirDisplay.let { disp ->
+                disp.targetDirData = BleDirDisplay.DirData(
+                    it,
+                    disp.targetDirData.meters
                 )
             }
         }
 
         prevWaypoints = Pair(starts, ends)
     }
+
+//    private fun getCurrDir():BleDirDisplay.Dir{
+//
+//    }
 
     private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
         return Pair(
@@ -167,4 +187,82 @@ class Navigator(
         }
         return null
     }
+
+    private val CORRIDOR_WIDTH = BigDecimal("50")
+    private val METERS_TO_ARC_COEFF = BigDecimal("0.000008999280057498208")
+
+    data class Line(val inc: BigDecimal, val lng: BigDecimal) {
+        constructor(
+            aLat: BigDecimal, aLng: BigDecimal,
+            bLat: BigDecimal, bLng: BigDecimal
+        ) : this(
+            (aLat - bLat) / (aLng - bLng),
+            (bLat - (aLat - bLat) / (aLng - bLng) * bLng)
+        )
+
+        fun value(lat: BigDecimal, lng: BigDecimal): BigDecimal {
+            return lat - this.inc * lng - this.lng
+        }
+    }
+
+    private fun checkStepByBounds(): Boolean {
+        steps.reversed().forEach {
+            val loc = location?.let { l ->
+                DirApi.Location(l.latitude, l.longitude)
+            } ?: return false
+            if (isPointInBounds(it.startLocation, it.endLocation, loc)) {
+                currStep = it
+                return true
+            }
+        }
+        return false;
+    }
+
+    private fun isPointInBounds(
+        start: DirApi.Location,
+        end: DirApi.Location,
+        point: DirApi.Location
+    ): Boolean {
+        val startLat = BigDecimal(start.lat.toString())
+        val startLng = BigDecimal(start.lng.toString())
+        val endLat = BigDecimal(end.lat.toString())
+        val endLng = BigDecimal(end.lng.toString())
+        val pointLat = BigDecimal(point.lat.toString())
+        val pointLng = BigDecimal(point.lng.toString())
+
+        val lineStartEnd = Line(
+            startLat, startLng,
+            endLat, endLng
+        );
+
+        val boundLine1 = Line(
+            lineStartEnd.inc,
+            lineStartEnd.lng + (CORRIDOR_WIDTH / BigDecimal("2")) * METERS_TO_ARC_COEFF
+        );
+        val boundLine2 = Line(
+            lineStartEnd.inc,
+            lineStartEnd.lng - (CORRIDOR_WIDTH / BigDecimal("2")) * METERS_TO_ARC_COEFF
+        );
+
+        return ((isPointBetweenLines(
+            boundLine1, boundLine2,
+            pointLat, pointLng,
+            startLat, startLng
+        ) &&
+                start.distance(end).let {
+                    point.distance(start) <= it &&
+                            point.distance(end) <= it
+                }) || point.distance(end) < WAYPOINT_RADIUS) &&
+                point.distance(start) >= WAYPOINT_RADIUS;
+    }
+
+    private fun isPointBetweenLines(
+        l: Line, k: Line,
+        pointLat: BigDecimal, pointLng: BigDecimal,
+        refLat: BigDecimal, refLng: BigDecimal
+    ): Boolean {
+        return l.value(pointLat, pointLng).signum() == l.value(refLat, refLng).signum() &&
+                k.value(pointLat, pointLng).signum() == k.value(refLat, refLng).signum()
+    }
+
 }
