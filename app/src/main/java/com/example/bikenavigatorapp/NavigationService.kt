@@ -1,10 +1,7 @@
 package com.example.bikenavigatorapp
 
 import android.app.*
-import android.content.BroadcastReceiver
-import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.res.Configuration
 import android.location.Location
 import android.os.*
@@ -60,14 +57,7 @@ class NavigationService : Service() {
 
     private val dirDisplay = BleDirDisplay(this)
     private var nav: Navigator? = null
-    private val dirs: DirApi = DirApi(this) onSuccess@{
-        nav = Navigator(
-            it,
-            mLocation ?: run { Log.e(TAG, "Location is null");return@onSuccess },
-            dirDisplay
-        )
-        requestLocationUpdates()
-    }
+    private lateinit var dirs: DirApi
 
     override fun onCreate() {
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
@@ -78,12 +68,26 @@ class NavigationService : Service() {
             }
         }
         createLocationRequest()
-        updateLastLocation()
         val handlerThread = HandlerThread(TAG)
         handlerThread.start()
         mServiceHandler = Handler(handlerThread.looper)
         mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
-        registerNewNavigationBr()
+
+        dirs = DirApi(this) { steps ->
+//            NOTE: could potentially remove this \/ location update since this will always happen after location update when doing dirs.updateSteps(start:Location,destUrl:String)
+            updateLastLocation onSuccess@{
+                nav = Navigator(
+                    steps,
+                    mLocation ?: run {
+                        Log.e(TAG, "Location is null")
+                        return@onSuccess
+                    },
+                    dirDisplay
+                )
+
+                requestLocationUpdates()
+            }
+        }
 
         // Android O requires a Notification Channel.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -153,6 +157,17 @@ class NavigationService : Service() {
 
     override fun onDestroy() {
         mServiceHandler.removeCallbacksAndMessages(null)
+        dirDisplay.bluetoothGatt?.disconnect()
+    }
+
+    /**
+     * Sets the location request parameters.
+     */
+    private fun createLocationRequest() {
+        mLocationRequest = LocationRequest()
+        mLocationRequest.interval = UPDATE_INTERVAL_IN_MILLISECONDS
+        mLocationRequest.fastestInterval = FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
+        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
     }
 
     /**
@@ -247,17 +262,15 @@ class NavigationService : Service() {
             return builder.build()
         }
 
-    private fun updateLastLocation() {
+    private fun updateLastLocation(onSuccess: (Location) -> Unit) {
         try {
             mFusedLocationClient.lastLocation
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful && task.result != null) {
                         mLocation = task.result
+                        onSuccess(task.result)
                     } else {
-                        Log.w(
-                            TAG,
-                            "Failed to get location."
-                        )
+                        Log.w(TAG, "Failed to get location.")
                     }
                 }
         } catch (unlikely: SecurityException) {
@@ -274,50 +287,25 @@ class NavigationService : Service() {
 
         nav?.apply {
             this.location = location
+            dirDisplay.update()
         } ?: run {
             Log.w(TAG, "Location updating with null navigation")
         }
     }
 
     fun setNewDestination(destUrl: String) {
-        updateLastLocation()
-
-        mLocation?.let {
-            dirs.updateSteps(it.toDirApiLocation(), destUrl)
-        } ?: run {
-            Log.w(TAG, "Could not get current location")
-            return
-        }
-    }
-
-    /**
-     * Sets the location request parameters.
-     */
-    private fun createLocationRequest() {
-        mLocationRequest = LocationRequest()
-        mLocationRequest.interval = UPDATE_INTERVAL_IN_MILLISECONDS
-        mLocationRequest.fastestInterval = FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
-        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-    }
-
-
-    private fun registerNewNavigationBr() {
-        val newNavigationBr = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                val newDestUrl = intent?.extras?.getString(MainActivity.NEW_DEST_URL_EXTRA) ?: run {
-                    Log.w(TAG, "No NEW_DEST_URL_EXTRA provided")
-                    return
-                }
+        updateLastLocation onSuccess@{
+            mLocation?.let {
+                dirs.updateSteps(it.toDirApiLocation(), destUrl)
+            } ?: run {
+                Log.w(TAG, "Could not get current location")
+                return@onSuccess
             }
         }
-
-        val filter = IntentFilter(MainActivity.NEW_DEST_URL_ACTION)
-        registerReceiver(newNavigationBr, filter)
     }
 
-
-    fun Location.toDirApiLocation(): DirApi.Location {
-        return DirApi.Location(this.latitude, this.longitude)
+    fun bleScan() {
+        dirDisplay.initiateScan()
     }
 
     /**
@@ -338,9 +326,6 @@ class NavigationService : Service() {
          * The name of the channel for notifications.
          */
         private const val CHANNEL_ID = "channel_01"
-
-        const val LOCATION_UPDATE_ACTION = "$PACKAGE_NAME.LOCATION_UPDATE_ACTION"
-        const val LOCATION_UPDATE_EXTRA = "$PACKAGE_NAME.LOCATION_UPDATE_EXTRA"
 
         private const val EXTRA_STARTED_LOC_SERVICE_FROM_NOTIFICATION =
             "$PACKAGE_NAME.started_from_notification"

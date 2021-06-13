@@ -61,6 +61,8 @@ class Navigator(
         if (location == null) {
             return
         }
+        Log.d(TAG, "Location is = ${location?.latitude}  ${location?.longitude}")
+
 
         val meters: Int? = checkForNewMeters()
 

@@ -59,3 +59,7 @@ fun getLocationTitle(context: Context): String? {
         DateFormat.getDateTimeInstance().format(Date())
     )
 }
+
+fun Location.toDirApiLocation(): DirApi.Location {
+    return DirApi.Location(this.latitude, this.longitude)
+}

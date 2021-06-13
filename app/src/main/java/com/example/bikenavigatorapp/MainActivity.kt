@@ -71,7 +71,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (intent?.action == Intent.ACTION_SEND) {
-            destUrl = getSharePlaceUrlFromIntent() // TODO and broadcast it to the service
+            destUrl = getSharePlaceUrlFromIntent()
         }
 
         registerGattConnStateChangeReceiver()
@@ -109,12 +109,6 @@ class MainActivity : AppCompatActivity() {
 
         super.onStop()
     }
-
-    override fun onDestroy() {
-        super.onDestroy()
-//        TODO dirDisplay.bluetoothGatt?.disconnect()
-    }
-
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
@@ -228,6 +222,8 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun blutacz(v: View) {
-//        TODO dirDisplay.initiateScan()
+        mService?.bleScan() ?: run {
+            Log.w(TAG, "Trying to initiate scan in unbound service")
+        }
     }
 }
