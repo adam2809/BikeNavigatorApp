@@ -219,27 +219,4 @@ class BleDirDisplay(private val context: Context) {
             context.sendBroadcast(it)
         }
     }
-
-    fun straight() {
-        targetDirData = DirData(Dir.STRAIGHT, 100)
-        writeTargetDir()
-    }
-
-    fun left() {
-        targetDirData = DirData(Dir.TURN_LEFT, 65)
-        writeTargetDir()
-
-    }
-
-    fun right() {
-        targetDirData = DirData(Dir.TURN_RIGHT, 32)
-        writeTargetDir()
-    }
-
-    fun noDir() {
-        targetDirData = DirData(Dir.NO_DIR, 40)
-        writeTargetDir()
-    }
-
-    fun isBtEnabled(): Boolean = bluetoothAdapter.isEnabled
 }

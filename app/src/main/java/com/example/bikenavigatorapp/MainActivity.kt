@@ -262,19 +262,6 @@ class MainActivity : AppCompatActivity() {
 
 
     fun blutacz(v: View) {
-        dirDisplay.initiateScan()
-    }
-
-    fun straight(v: View) {
-        dirDisplay.straight()
-    }
-
-    fun left(v: View) {
-        dirDisplay.left()
-
-    }
-
-    fun right(v: View) {
-        dirDisplay.right()
+//        TODO dirDisplay.initiateScan()
     }
 }
