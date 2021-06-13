@@ -1,13 +1,12 @@
 package com.example.bikenavigatorapp
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.app.Activity
 import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.content.*
 import android.content.pm.PackageManager
-import android.location.Location
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -16,31 +15,31 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
-import com.example.bikenavigatorapp.LocationUpdatesService.LocalBinder
+import androidx.core.content.ContextCompat
+import com.example.bikenavigatorapp.NavigationService.LocalBinder
 
-
-//TODO like this private static final String TAG = LocationUpdatesService.class.getSimpleName(); everywhere
 class MainActivity : AppCompatActivity() {
     companion object {
         private const val TAG = "MainActivity";
         private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
+        private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
+        const val NEW_DEST_URL_ACTION = "$PACKAGE_NAME.NEW_DEST_URL_ACTION"
+        const val NEW_DEST_URL_EXTRA = "$PACKAGE_NAME.NEW_DEST_URL_EXTRA"
     }
 
     // Monitors the state of the connection to the service.
     private val mServiceConnection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             val binder = service as LocalBinder
-            mService = binder.service
             mBound = true
-
-            destUrl?.let {
-                if (nav == null) {
-                    startNewNav(it)
+            mService = binder.service.also { s ->
+                destUrl?.let {
+                    s.setNewDestination(it)
+                    destUrl = null
+                } ?: run {
+                    Log.w(TAG, "Trying to update navigation in service without dest url provided")
                 }
-            } ?: run {
-                Log.w(TAG, "Tried starting new nav without dest share place url")
             }
         }
 
@@ -50,13 +49,10 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    val dirDisplay = BleDirDisplay(this)
-    lateinit var dirs: DirApi
-    var nav: Navigator? = null
     var destUrl: String? = null
 
     // A reference to the service used to get location updates.
-    private var mService: LocationUpdatesService? = null
+    private var mService: NavigationService? = null
 
     // Tracks the bound state of the service.
     private var mBound = false
@@ -73,12 +69,13 @@ class MainActivity : AppCompatActivity() {
             Log.i(TAG, "Intent is null")
             return
         }
-        when (intent?.action) {
-            Intent.ACTION_SEND -> destUrl = getSharePlaceUrlFromIntent()
+
+        if (intent?.action == Intent.ACTION_SEND) {
+            destUrl = getSharePlaceUrlFromIntent() // TODO and broadcast it to the service
         }
 
         registerGattConnStateChangeReceiver()
-        registerLocationUpdateReceiver()
+//        TODO should have a shared preference to remember previous state of gatt connection sinco now activity can be restarted without restarting the gatt connectionfEJC
         updateConnectionStatusTextView(BluetoothProfile.STATE_DISCONNECTED)
     }
 
@@ -89,7 +86,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onStart() {
         val res = bindService(
-            Intent(this, LocationUpdatesService::class.java), mServiceConnection,
+            Intent(this, NavigationService::class.java), mServiceConnection,
             BIND_AUTO_CREATE
         )
         if (res) {
@@ -115,7 +112,38 @@ class MainActivity : AppCompatActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        dirDisplay.bluetoothGatt?.disconnect()
+//        TODO dirDisplay.bluetoothGatt?.disconnect()
+    }
+
+
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        when (requestCode) {
+            ENABLE_BLUETOOTH_REQUEST_CODE -> {
+                if (resultCode != Activity.RESULT_OK) {
+                    promptEnableBluetooth()
+                }
+            }
+        }
+    }
+
+
+    override fun onRequestPermissionsResult(
+        requestCode: Int,
+        permissions: Array<out String>,
+        grantResults: IntArray
+    ) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        when (requestCode) {
+            LOCATION_PERMISSION_REQUEST_CODE -> {
+                if (grantResults.firstOrNull() == PackageManager.PERMISSION_DENIED) {
+                    Log.w(TAG, "Location permissions request failed requesting again")
+                    requestLocationPermissions()
+                } else {
+                    Log.i(TAG, "Successfuly granted location permissions")
+                }
+            }
+        }
     }
 
     private fun getSharePlaceUrlFromIntent(): String? {
@@ -132,23 +160,16 @@ class MainActivity : AppCompatActivity() {
         return url
     }
 
-    @SuppressLint("MissingPermission")
-    private fun startNewNav(sharePlaceUrl: String) {
-        mService?.let { service ->
-            service.updateLastLocation { loc ->
-                dirs = DirApi(this) {
-                    nav = Navigator(it, loc, dirDisplay)
-                    service.requestLocationUpdates()
-                }
-                dirs.updateSteps(DirApi.Location(loc.latitude, loc.longitude), sharePlaceUrl)
-            }
-        } ?: run {
-            Log.e(TAG, "mService is null")
-        }
-    }
-
     private fun promptEnableBluetooth() {
-        if (!dirDisplay.isBtEnabled()) {
+        val adapter = ContextCompat.getSystemService(
+            this,
+            BluetoothManager::class.java
+        )?.adapter ?: run {
+            Log.e(TAG, "Bt manager or adapter are anavailable")
+            return
+        }
+
+        if (!adapter.isEnabled) {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, ENABLE_BLUETOOTH_REQUEST_CODE)
         }
@@ -167,31 +188,6 @@ class MainActivity : AppCompatActivity() {
 
         val filter = IntentFilter(BleDirDisplay.GATT_CONN_STATE_CHANGE_ACTION)
         registerReceiver(gattConnStateChangeBr, filter)
-    }
-
-    private fun registerLocationUpdateReceiver() {
-        val locUpdateBr = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent) {
-                val loc: Location =
-                    intent.getParcelableExtra(LocationUpdatesService.LOCATION_UPDATE_EXTRA) ?: run {
-                        Log.w(TAG, "No LOCATION_UPDATE_EXTRA provided")
-                        return
-                    }
-
-                nav?.let {
-                    it.location = loc
-                } ?: run {
-                    Log.w(TAG, "Location update useless since Navigator is null")
-                    return
-                }
-                dirDisplay.update()
-            }
-        }
-
-        val filter = IntentFilter(LocationUpdatesService.LOCATION_UPDATE_ACTION)
-        registerReceiver(locUpdateBr, filter)
-
-        LocalBroadcastManager.getInstance(this).registerReceiver(locUpdateBr, filter);
     }
 
     fun updateConnectionStatusTextView(state: Int) {
@@ -216,17 +212,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
-        super.onActivityResult(requestCode, resultCode, data)
-        when (requestCode) {
-            ENABLE_BLUETOOTH_REQUEST_CODE -> {
-                if (resultCode != Activity.RESULT_OK) {
-                    promptEnableBluetooth()
-                }
-            }
-        }
-    }
-
     private fun hasLocationPermissions(): Boolean {
         return hasPermission(Manifest.permission.ACCESS_COARSE_LOCATION) && hasPermission(Manifest.permission.ACCESS_FINE_LOCATION)
     }
@@ -241,25 +226,6 @@ class MainActivity : AppCompatActivity() {
             LOCATION_PERMISSION_REQUEST_CODE
         )
     }
-
-    override fun onRequestPermissionsResult(
-        requestCode: Int,
-        permissions: Array<out String>,
-        grantResults: IntArray
-    ) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        when (requestCode) {
-            LOCATION_PERMISSION_REQUEST_CODE -> {
-                if (grantResults.firstOrNull() == PackageManager.PERMISSION_DENIED) {
-                    Log.w(TAG, "Location permissions request failed requesting again")
-                    requestLocationPermissions()
-                } else {
-                    Log.i(TAG, "Successfuly granted location permissions")
-                }
-            }
-        }
-    }
-
 
     fun blutacz(v: View) {
 //        TODO dirDisplay.initiateScan()

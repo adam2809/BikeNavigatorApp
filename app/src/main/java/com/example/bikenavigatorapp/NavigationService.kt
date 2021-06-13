@@ -1,14 +1,15 @@
 package com.example.bikenavigatorapp
 
 import android.app.*
+import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.location.Location
 import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
-import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.*
 
 /**
@@ -25,7 +26,7 @@ import com.google.android.gms.location.*
  * continue. When the activity comes back to the foreground, the foreground service stops, and the
  * notification associated with that service is removed.
  */
-class LocationUpdatesService : Service() {
+class NavigationService : Service() {
     private val mBinder: IBinder = LocalBinder()
 
     /**
@@ -34,28 +35,40 @@ class LocationUpdatesService : Service() {
      * place.
      */
     private var mChangingConfiguration = false
-    private var mNotificationManager: NotificationManager? = null
+    private lateinit var mNotificationManager: NotificationManager
 
     /**
      * Contains parameters used by [com.google.android.gms.location.FusedLocationProviderApi].
      */
-    private var mLocationRequest: LocationRequest? = null
+    private lateinit var mLocationRequest: LocationRequest
 
     /**
      * Provides access to the Fused Location Provider API.
      */
-    private var mFusedLocationClient: FusedLocationProviderClient? = null
+    private lateinit var mFusedLocationClient: FusedLocationProviderClient
 
     /**
      * Callback for changes in location.
      */
-    private var mLocationCallback: LocationCallback? = null
-    private var mServiceHandler: Handler? = null
+    private lateinit var mLocationCallback: LocationCallback
+    private lateinit var mServiceHandler: Handler
 
     /**
      * The current location.
      */
     var mLocation: Location? = null
+
+    private val dirDisplay = BleDirDisplay(this)
+    private var nav: Navigator? = null
+    private val dirs: DirApi = DirApi(this) onSuccess@{
+        nav = Navigator(
+            it,
+            mLocation ?: run { Log.e(TAG, "Location is null");return@onSuccess },
+            dirDisplay
+        )
+        requestLocationUpdates()
+    }
+
     override fun onCreate() {
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         mLocationCallback = object : LocationCallback() {
@@ -70,6 +83,7 @@ class LocationUpdatesService : Service() {
         handlerThread.start()
         mServiceHandler = Handler(handlerThread.looper)
         mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
+        registerNewNavigationBr()
 
         // Android O requires a Notification Channel.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
@@ -79,7 +93,7 @@ class LocationUpdatesService : Service() {
                 NotificationChannel(CHANNEL_ID, name, NotificationManager.IMPORTANCE_DEFAULT)
 
             // Set the Notification Channel for the Notification Manager.
-            mNotificationManager!!.createNotificationChannel(mChannel)
+            mNotificationManager.createNotificationChannel(mChannel)
         }
     }
 
@@ -138,19 +152,19 @@ class LocationUpdatesService : Service() {
     }
 
     override fun onDestroy() {
-        mServiceHandler!!.removeCallbacksAndMessages(null)
+        mServiceHandler.removeCallbacksAndMessages(null)
     }
 
     /**
      * Makes a request for location updates. Note that in this sample we merely log the
      * [SecurityException].
      */
-    fun requestLocationUpdates() {
+    private fun requestLocationUpdates() {
         Log.i(TAG, "Requesting location updates")
         setRequestingLocationUpdates(this, true)
-        startService(Intent(applicationContext, LocationUpdatesService::class.java))
+        startService(Intent(applicationContext, NavigationService::class.java))
         try {
-            mFusedLocationClient!!.requestLocationUpdates(
+            mFusedLocationClient.requestLocationUpdates(
                 mLocationRequest,
                 mLocationCallback, Looper.myLooper()
             )
@@ -167,10 +181,10 @@ class LocationUpdatesService : Service() {
      * Removes location updates. Note that in this sample we merely log the
      * [SecurityException].
      */
-    fun removeLocationUpdates() {
+    private fun removeLocationUpdates() {
         Log.i(TAG, "Removing location updates")
         try {
-            mFusedLocationClient!!.removeLocationUpdates(mLocationCallback)
+            mFusedLocationClient.removeLocationUpdates(mLocationCallback)
             setRequestingLocationUpdates(this, false)
             stopSelf()
         } catch (unlikely: SecurityException) {
@@ -192,7 +206,7 @@ class LocationUpdatesService : Service() {
      */
     private val notification: Notification
         get() {
-            val intent = Intent(this, LocationUpdatesService::class.java)
+            val intent = Intent(this, NavigationService::class.java)
             val text: CharSequence = getLocationText(mLocation)
 
             // Extra to help us figure out if we arrived in onStartCommand via the notification or not.
@@ -233,17 +247,12 @@ class LocationUpdatesService : Service() {
             return builder.build()
         }
 
-    fun updateLastLocation() {
-        updateLastLocation {}
-    }
-
-    fun updateLastLocation(onSuccess: (Location) -> Unit) {
+    private fun updateLastLocation() {
         try {
-            mFusedLocationClient!!.lastLocation
+            mFusedLocationClient.lastLocation
                 .addOnCompleteListener { task ->
                     if (task.isSuccessful && task.result != null) {
                         mLocation = task.result
-                        onSuccess(task.result)
                     } else {
                         Log.w(
                             TAG,
@@ -263,12 +272,22 @@ class LocationUpdatesService : Service() {
         Log.i(TAG, "New location: $location")
         mLocation = location
 
-        // Notify anyone listening for broadcasts about the new location.
-        val intent = Intent(LOCATION_UPDATE_ACTION)
-        intent.putExtra(LOCATION_UPDATE_EXTRA, location)
-        //TODO do this \/ in ble dir display
-        LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
+        nav?.apply {
+            this.location = location
+        } ?: run {
+            Log.w(TAG, "Location updating with null navigation")
+        }
+    }
 
+    fun setNewDestination(destUrl: String) {
+        updateLastLocation()
+
+        mLocation?.let {
+            dirs.updateSteps(it.toDirApiLocation(), destUrl)
+        } ?: run {
+            Log.w(TAG, "Could not get current location")
+            return
+        }
     }
 
     /**
@@ -276,9 +295,29 @@ class LocationUpdatesService : Service() {
      */
     private fun createLocationRequest() {
         mLocationRequest = LocationRequest()
-        mLocationRequest!!.interval = UPDATE_INTERVAL_IN_MILLISECONDS
-        mLocationRequest!!.fastestInterval = FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
-        mLocationRequest!!.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+        mLocationRequest.interval = UPDATE_INTERVAL_IN_MILLISECONDS
+        mLocationRequest.fastestInterval = FASTEST_UPDATE_INTERVAL_IN_MILLISECONDS
+        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+    }
+
+
+    private fun registerNewNavigationBr() {
+        val newNavigationBr = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                val newDestUrl = intent?.extras?.getString(MainActivity.NEW_DEST_URL_EXTRA) ?: run {
+                    Log.w(TAG, "No NEW_DEST_URL_EXTRA provided")
+                    return
+                }
+            }
+        }
+
+        val filter = IntentFilter(MainActivity.NEW_DEST_URL_ACTION)
+        registerReceiver(newNavigationBr, filter)
+    }
+
+
+    fun Location.toDirApiLocation(): DirApi.Location {
+        return DirApi.Location(this.latitude, this.longitude)
     }
 
     /**
@@ -286,33 +325,14 @@ class LocationUpdatesService : Service() {
      * clients, we don't need to deal with IPC.
      */
     inner class LocalBinder : Binder() {
-        val service: LocationUpdatesService
-            get() = this@LocationUpdatesService
-    }
-
-    /**
-     * Returns true if this is a foreground service.
-     *
-     * @param context The [Context].
-     */
-    fun serviceIsRunningInForeground(context: Context): Boolean {
-        val manager = context.getSystemService(
-            ACTIVITY_SERVICE
-        ) as ActivityManager
-        for (service in manager.getRunningServices(Int.MAX_VALUE)) {
-            if (javaClass.name == service.service.className) {
-                if (service.foreground) {
-                    return true
-                }
-            }
-        }
-        return false
+        val service: NavigationService
+            get() = this@NavigationService
     }
 
     companion object {
         private const val PACKAGE_NAME =
             "com.example.bikenavigatorapp"
-        private val TAG = LocationUpdatesService::class.java.simpleName
+        private val TAG = NavigationService::class.java.simpleName
 
         /**
          * The name of the channel for notifications.
@@ -323,7 +343,7 @@ class LocationUpdatesService : Service() {
         const val LOCATION_UPDATE_EXTRA = "$PACKAGE_NAME.LOCATION_UPDATE_EXTRA"
 
         private const val EXTRA_STARTED_LOC_SERVICE_FROM_NOTIFICATION =
-            PACKAGE_NAME + ".started_from_notification"
+            "$PACKAGE_NAME.started_from_notification"
 
         /**
          * The desired interval for location updates. Inexact. Updates may be more or less frequent.
