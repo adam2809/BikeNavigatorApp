@@ -181,7 +181,11 @@ class NavigationService : Service() {
         try {
             mFusedLocationClient.requestLocationUpdates(
                 mLocationRequest,
-                mLocationCallback, Looper.myLooper()
+                mLocationCallback,
+                Looper.myLooper() ?: run {
+                    Log.w(TAG,"Looper is null")
+                    return
+                }
             )
         } catch (unlikely: SecurityException) {
             setRequestingLocationUpdates(this, false)
