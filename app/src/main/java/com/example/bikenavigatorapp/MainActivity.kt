@@ -221,7 +221,7 @@ class MainActivity : AppCompatActivity() {
         )
     }
 
-    fun blutacz(v: View) {
+    fun initiateBleScan(v: View) {
         mService?.bleScan() ?: run {
             Log.w(TAG, "Trying to initiate scan in unbound service")
         }
