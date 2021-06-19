@@ -23,7 +23,7 @@ class DirApi(
 ) {
     private companion object {
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
-        const val TAG = "Navigator";
+        private val TAG = "${DirApi::class.java.simpleName}(bnalt)"
         const val REQ_TAG = "DirApiRequest";
     }
 

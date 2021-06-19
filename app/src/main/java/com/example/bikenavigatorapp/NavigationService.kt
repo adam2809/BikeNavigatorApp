@@ -322,9 +322,8 @@ class NavigationService : Service() {
     }
 
     companion object {
-        private const val PACKAGE_NAME =
-            "com.example.bikenavigatorapp"
-        private val TAG = NavigationService::class.java.simpleName
+        private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
+        private val TAG = "${NavigationService::class.java.simpleName}(bnalt)"
 
         /**
          * The name of the channel for notifications.

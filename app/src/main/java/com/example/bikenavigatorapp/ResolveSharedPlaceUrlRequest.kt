@@ -27,7 +27,7 @@ class ResolveSharePlaceUrlRequest(
 
 }) {
     companion object {
-        const val TAG = "HeadersRequest";
+        val TAG = "${ResolveSharePlaceUrlRequest::class.java.simpleName}(bnalt)"
     }
 
     private val listener: Response.Listener<Map<String, String>> = Response.Listener {

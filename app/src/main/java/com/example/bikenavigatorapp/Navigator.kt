@@ -33,7 +33,7 @@ class Navigator(
     companion object {
         const val WAYPOINT_RADIUS = 10F
         const val EARTH_RADIUS_METERS = 6371F * 1000F
-        const val TAG = "Navigator"
+        private val TAG = "${Navigator::class.java.simpleName}(bnalt)"
         const val METERS_DISPLAY_INTERVAL = 2
     }
 

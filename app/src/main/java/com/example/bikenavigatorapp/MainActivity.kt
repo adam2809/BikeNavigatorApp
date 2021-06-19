@@ -20,12 +20,9 @@ import com.example.bikenavigatorapp.NavigationService.LocalBinder
 
 class MainActivity : AppCompatActivity() {
     companion object {
-        private const val TAG = "MainActivity";
+        private val TAG = "${NavigationService::class.java.simpleName}(bnalt)"
         private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
-        private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
-        const val NEW_DEST_URL_ACTION = "$PACKAGE_NAME.NEW_DEST_URL_ACTION"
-        const val NEW_DEST_URL_EXTRA = "$PACKAGE_NAME.NEW_DEST_URL_EXTRA"
     }
 
     // Monitors the state of the connection to the service.
