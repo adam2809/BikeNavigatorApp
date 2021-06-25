@@ -156,6 +156,7 @@ class NavigationService : Service() {
     }
 
     override fun onDestroy() {
+        Log.i(TAG,"Destroying service")
         mServiceHandler.removeCallbacksAndMessages(null)
         dirDisplay.bluetoothGatt?.disconnect()
     }
@@ -310,6 +311,10 @@ class NavigationService : Service() {
 
     fun bleScan() {
         dirDisplay.initiateScan()
+    }
+
+    fun getBleStatus(): Boolean {
+        return dirDisplay.isBtDeviceReadyForAccess()
     }
 
     /**

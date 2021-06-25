@@ -30,13 +30,17 @@ class MainActivity : AppCompatActivity() {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
             val binder = service as LocalBinder
             mBound = true
-            mService = binder.service.also { s ->
+            mService = binder.service.also { boundService ->
                 destUrl?.let {
-                    s.setNewDestination(it)
+                    boundService.setNewDestination(it)
                     destUrl = null
                 } ?: run {
                     Log.w(TAG, "Trying to update navigation in service without dest url provided")
                 }
+                updateConnectionStatusTextView(if(boundService.getBleStatus()) {
+                    BluetoothProfile.STATE_CONNECTED
+                }else{
+                    BluetoothProfile.STATE_DISCONNECTED})
             }
         }
 

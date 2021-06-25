@@ -178,7 +178,7 @@ class BleDirDisplay(private val context: Context) {
         return found.elementAtOrNull(0);
     }
 
-    private fun isBtDeviceReadyForAccess(): Boolean {
+    fun isBtDeviceReadyForAccess(): Boolean {
         return displayCharacteristic != null
     }
 
