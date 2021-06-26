@@ -9,8 +9,8 @@ import java.text.DateFormat
 import java.util.*
 
 
-val HTTPS_REGEX =
-    Regex("(?:([A-Za-z]+):)?(/{0,3})([0-9.\\-A-Za-z]+)(?::(\\d+))?(?:/([^?#]*))?(?:\\?([^#]*))?(?:#(.*))?\$")
+val SHARE_PLACE_URL_REGEX =
+    Regex("https://maps\\.app\\.goo\\.gl/\\w+")
 val LOCATION_REGEX = Regex("!8m2!3d(\\d{1,2}\\.\\d+)!4d(\\d{1,2}\\.\\d+)?")
 
 fun Context.hasPermission(permissionType: String): Boolean {

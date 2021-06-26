@@ -146,12 +146,14 @@ class MainActivity : AppCompatActivity() {
             Log.w(TAG, "Intent is missing TEXT extra")
             return null
         }
-        val urlResult = HTTPS_REGEX.find(text)
+        Log.d(TAG, "Text extra of intent: $text")
+        val urlResult = SHARE_PLACE_URL_REGEX.find(text)
         val url = urlResult?.groupValues?.firstOrNull() ?: run {
             Log.w(TAG, "Could not find url in TEXT extra")
             return null
         }
-        Log.i(TAG, "URL is: $url")
+
+        Log.d(TAG, "URL is: $url")
         return url
     }
 
