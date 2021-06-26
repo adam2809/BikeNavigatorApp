@@ -74,7 +74,7 @@ class DirApi(
         }
     }
 
-    inner class DirApiRequest(params: String) : JsonObjectRequest(
+    inner class DirApiRequest(params: String, routeIndex: Int) : JsonObjectRequest(
         Request.Method.GET, "$DIR_API_URL?${params}", null,
         resListener@{ res ->
             Log.i(REQ_TAG, "Response: $res")
@@ -84,7 +84,13 @@ class DirApi(
             }
 
             val stepsJson: JSONArray = res.let {
-                it.getNonEmptyArrayElement("routes")?.get(0) as JSONObject
+                val routes = it.getNonEmptyArrayElement("routes")
+
+                return@let if (routeIndex <= routes?.length()?.minus(1) ?: routeIndex) {
+                    routes?.get(routeIndex) as JSONObject
+                } else {
+                    routes?.get(0) as JSONObject
+                }
             }.let {
                 it.getNonEmptyArrayElement("legs")?.get(0) as JSONObject
             }.getNonEmptyArrayElement("steps") ?: return@resListener
@@ -115,24 +121,25 @@ class DirApi(
     )
 
     private fun getUrlParams(origin: Location, dest: Location): String {
-        return "origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&mode=bicycling&key=${BuildConfig.DIR_API_KEY}"
+        return "origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&mode=bicycling&key=${BuildConfig.DIR_API_KEY}&alternatives=true"
     }
 
-    fun updateSteps(start: Location, destUrl: String) {
-        queue.add(ResolveSharePlaceUrlRequest(destUrl) {
-            updateSteps(start, it)
+    fun updateSteps(start: Location, sharePlaceUrl: String) {
+        queue.add(ResolveSharePlaceUrlRequest(sharePlaceUrl) { dest, routeIndex ->
+            updateSteps(start, dest, routeIndex)
         })
     }
 
 
     @SuppressLint("MissingPermission")
-    fun updateSteps(start: Location, dest: Location) {
+    fun updateSteps(start: Location, dest: Location, routeIndex: Int) {
         queue.add(
             DirApiRequest(
                 getUrlParams(
                     start,
                     dest
-                )
+                ),
+                routeIndex
             )
         )
     }

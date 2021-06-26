@@ -11,7 +11,7 @@ import java.net.HttpURLConnection
 
 class ResolveSharePlaceUrlRequest(
     url: String,
-    onSuccessCb: (DirApi.Location) -> Unit
+    onSuccessCb: (DirApi.Location, Int) -> Unit
 ) : Request<Map<String, String>>(Method.GET, url, errorListener@{ error ->
     error?.networkResponse?.let {
         if (it.statusCode == HttpURLConnection.HTTP_MOVED_TEMP) {
@@ -45,24 +45,28 @@ class ResolveSharePlaceUrlRequest(
 
 }
 
-private fun handleRedirect(error: VolleyError, onSuccessCb: (DirApi.Location) -> Unit) {
+private fun handleRedirect(error: VolleyError, onSuccessCb: (DirApi.Location, Int) -> Unit) {
     val locationRedirectUrl: String = error.networkResponse?.headers?.get("Location") ?: run {
         Log.e(ResolveSharePlaceUrlRequest.TAG, "Location header missing")
         return
     }
-    getLocationFromRedirectUrl(locationRedirectUrl)?.let {
+    val dest = getLocationFromRedirectUrl(locationRedirectUrl)?.also {
         Log.w(ResolveSharePlaceUrlRequest.TAG, "Extracted location from redirect url: $it")
-        onSuccessCb(it)
     } ?: run {
         Log.e(ResolveSharePlaceUrlRequest.TAG, "Could not find location in url")
         return
     }
 
+    val routeIndex = getRouteIndexFromRedirectUrl(locationRedirectUrl).also {
+        Log.w(ResolveSharePlaceUrlRequest.TAG, "Extracted route index from redirect url: $it")
+    }
+
+    onSuccessCb(dest, routeIndex)
 }
 
 
 private fun getLocationFromRedirectUrl(url: String): DirApi.Location? {
-    val locRes = LOCATION_REGEX.find(url)
+    val locRes = DESTINATION_LOCATION_REGEX.find(url)
     locRes?.groupValues?.let {
         if (it.size != 3) {
             return@let null
@@ -70,5 +74,25 @@ private fun getLocationFromRedirectUrl(url: String): DirApi.Location? {
         return DirApi.Location(it[1].toDouble(), it[2].toDouble())
     } ?: run {
         return null
+    }
+}
+
+private fun getRouteIndexFromRedirectUrl(url: String): Int {
+    val indexDataRes = ROUTE_INDEX_DATA_REGEX.find(url)
+
+    val groups = indexDataRes?.groupValues ?: run {
+        Log.w(ResolveSharePlaceUrlRequest.TAG, "Route index data regex groups are null")
+        return 0
+    }
+    if (groups.size != 2) {
+        return 0
+    }
+
+    groups[1].let {
+        return if (it.isEmpty()) {
+            0
+        } else {
+            it[it.lastIndex] - '0'
+        }
     }
 }

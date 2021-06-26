@@ -74,7 +74,6 @@ class NavigationService : Service() {
         mNotificationManager = getSystemService(NOTIFICATION_SERVICE) as NotificationManager
 
         dirs = DirApi(this) { steps ->
-//            NOTE: could potentially remove this \/ location update since this will always happen after location update when doing dirs.updateSteps(start:Location,destUrl:String)
             updateLastLocation onSuccess@{
                 nav = Navigator(
                     steps,

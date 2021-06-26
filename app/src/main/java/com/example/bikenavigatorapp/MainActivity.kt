@@ -31,9 +31,9 @@ class MainActivity : AppCompatActivity() {
             val binder = service as LocalBinder
             mBound = true
             mService = binder.service.also { boundService ->
-                destUrl?.let {
+                sharePlaceUrl?.let {
                     boundService.setNewDestination(it)
-                    destUrl = null
+                    sharePlaceUrl = null
                 } ?: run {
                     Log.w(TAG, "Trying to update navigation in service without dest url provided")
                 }
@@ -50,7 +50,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    var destUrl: String? = null
+    var sharePlaceUrl: String? = null
 
     // A reference to the service used to get location updates.
     private var mService: NavigationService? = null
@@ -72,7 +72,7 @@ class MainActivity : AppCompatActivity() {
         }
 
         if (intent?.action == Intent.ACTION_SEND) {
-            destUrl = getSharePlaceUrlFromIntent()
+            sharePlaceUrl = getSharePlaceUrlFromIntent()
         }
 
         registerGattConnStateChangeReceiver()

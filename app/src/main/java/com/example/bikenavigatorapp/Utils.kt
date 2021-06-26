@@ -9,9 +9,9 @@ import java.text.DateFormat
 import java.util.*
 
 
-val SHARE_PLACE_URL_REGEX =
-    Regex("https://maps\\.app\\.goo\\.gl/\\w+")
-val LOCATION_REGEX = Regex("!8m2!3d(\\d{1,2}\\.\\d+)!4d(\\d{1,2}\\.\\d+)?")
+val SHARE_PLACE_URL_REGEX = Regex("https://maps\\.app\\.goo\\.gl/\\w+")
+val DESTINATION_LOCATION_REGEX = Regex("!8m2!3d(\\d{1,2}\\.\\d+)!4d(\\d{1,2}\\.\\d+)?")
+val ROUTE_INDEX_DATA_REGEX = Regex("!3e1!(\\w*)\\?utm_source=mstt_0")
 
 fun Context.hasPermission(permissionType: String): Boolean {
     return ContextCompat.checkSelfPermission(this, permissionType) ==
