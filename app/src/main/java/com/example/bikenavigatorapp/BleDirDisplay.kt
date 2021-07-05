@@ -23,9 +23,10 @@ class BleDirDisplay(private val context: Context) {
         private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
         const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
+        const val DIR_DATA_LENGTH = 6
     }
 
-    data class DirData(val dir: Dir, val meters: Int)
+    data class DirData(val dir: Dir, val meters: Int, val speed: Int = 0)
 
     enum class Dir {
         NO_DIR,
@@ -196,20 +197,23 @@ class BleDirDisplay(private val context: Context) {
 
         bluetoothGatt?.let { gatt ->
             displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            displayCharacteristic?.value = ByteArray(5).apply {
+            displayCharacteristic?.value = ByteArray(DIR_DATA_LENGTH).apply {
+                this[0] = targetDirData.dir.ordinal.toByte()
                 targetDirData.meters.let {
-                    this[0] = targetDirData.dir.ordinal.toByte()
                     this[1] = (it shr 24).toByte()
                     this[2] = (it shr 16).toByte()
                     this[3] = (it shr 8).toByte()
                     this[4] = (it shr 0).toByte()
                 }
+                this[5] = targetDirData.speed.toByte()
             }
             isTargetWritten = gatt.writeCharacteristic(displayCharacteristic ?: run {
                 isTargetWritten = false
                 return
             })
-        } ?: Log.e(TAG, "Unable to write $targetDirData")
+        } ?: run {
+            Log.e(TAG, "Unable to write $targetDirData gatt connection is null")
+        }
     }
 
     private fun sendUpdateGattStateBroadcast(state: Int) {

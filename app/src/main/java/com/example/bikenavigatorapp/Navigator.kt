@@ -66,6 +66,7 @@ class Navigator(
 
         val meters: Int? = checkForNewMeters()
 
+//        TODO meters of targetDirData and dir of targetDirData should be set at the same time this causes the deleay in changing dir when finishing and starting step
         meters?.let {
             Log.d(TAG, "Setting new meters=$it")
             dirDisplay.let { disp ->

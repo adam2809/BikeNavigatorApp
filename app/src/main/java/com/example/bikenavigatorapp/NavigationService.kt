@@ -8,6 +8,7 @@ import android.os.*
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.google.android.gms.location.*
+import kotlin.math.roundToInt
 
 /**
  * A bound and started service that is promoted to a foreground service when location updates have
@@ -291,10 +292,18 @@ class NavigationService : Service() {
 
         nav?.apply {
             this.location = location
-            dirDisplay.update()
         } ?: run {
             Log.w(TAG, "Location updating with null navigation")
         }
+
+        dirDisplay.let {
+            it.targetDirData = BleDirDisplay.DirData(
+                it.targetDirData.dir,
+                it.targetDirData.meters,
+                (location.speed * MPS_TO_KPH_COEFFICIENT).roundToInt()
+            )
+        }
+        dirDisplay.update()
     }
 
     fun setNewDestination(destUrl: String) {
@@ -353,5 +362,6 @@ class NavigationService : Service() {
          * The identifier for the notification displayed for the foreground service.
          */
         private const val NOTIFICATION_ID = 12345678
+        private const val MPS_TO_KPH_COEFFICIENT = 3.6
     }
 }
