@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
 import android.view.View
+import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
@@ -227,6 +228,20 @@ class MainActivity : AppCompatActivity() {
     fun initiateBleScan(v: View) {
         mService?.bleScan() ?: run {
             Log.w(TAG, "Trying to initiate scan in unbound service")
+        }
+    }
+
+    fun switchSpeedometer(view: View) {
+        val isOn = mService?.switchSpeedometer() ?: run {
+            Log.w(TAG, "Trying to switch speedometer in unbound service")
+            return
+        }
+
+        val button = view as Button
+        button.text = if (isOn) {
+            resources.getString(R.string.stop_speedometer)
+        } else {
+            resources.getString(R.string.start_speedometer)
         }
     }
 }

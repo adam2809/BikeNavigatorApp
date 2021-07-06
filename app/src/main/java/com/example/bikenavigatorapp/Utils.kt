@@ -26,7 +26,7 @@ const val KEY_REQUESTING_LOCATION_UPDATES = "requesting_location_updates"
  *
  * @param context The [Context].
  */
-fun requestingLocationUpdates(context: Context?): Boolean {
+fun isRequestingLocationUpdates(context: Context?): Boolean {
     return PreferenceManager.getDefaultSharedPreferences(context)
         .getBoolean(KEY_REQUESTING_LOCATION_UPDATES, false)
 }

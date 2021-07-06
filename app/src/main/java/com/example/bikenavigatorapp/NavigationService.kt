@@ -148,7 +148,7 @@ class NavigationService : Service() {
         // Called when the last client (MainActivity in case of this sample) unbinds from this
         // service. If this method is called due to a configuration change in MainActivity, we
         // do nothing. Otherwise, we make this service a foreground service.
-        if (!mChangingConfiguration && requestingLocationUpdates(this)) {
+        if (!mChangingConfiguration && isRequestingLocationUpdates(this)) {
             Log.i(TAG, "Starting foreground service")
             startForeground(NOTIFICATION_ID, notification)
         }
@@ -320,6 +320,34 @@ class NavigationService : Service() {
 
     fun getBleStatus(): Boolean {
         return dirDisplay.isBtDeviceReadyForAccess()
+    }
+
+    /**
+     * Switches to and from speedometer mode
+     * @return true if was switched on false if off
+     */
+    fun switchSpeedometer(): Boolean {
+        if (dirDisplay.targetDirData.mode == BleDirDisplay.Mode.SPEEDOMETER) {
+            if (nav == null && isRequestingLocationUpdates(this)) {
+                dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+                    mode = BleDirDisplay.Mode.NOTHING
+                )
+                removeLocationUpdates()
+            } else {
+                dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+                    mode = BleDirDisplay.Mode.NAVIGATION
+                )
+            }
+            return false
+        } else {
+            if (!isRequestingLocationUpdates(this)) {
+                requestLocationUpdates()
+            }
+            dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+                mode = BleDirDisplay.Mode.SPEEDOMETER
+            )
+            return true
+        }
     }
 
     /**

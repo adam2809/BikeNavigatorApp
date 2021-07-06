@@ -15,4 +15,7 @@
     <string name="request_location_updates">Request location updates</string>
     <string name="remove_location_updates">Remove location updates</string>
     <string name="ble_scan">Scan</string>
+    <string name="start_speedometer">Start</string>
+    <string name="stop_speedometer">Stop </string>
+    <string name="speedometer">Speedometer:</string>
 </resources>
