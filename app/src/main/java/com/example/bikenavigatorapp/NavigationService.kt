@@ -296,13 +296,10 @@ class NavigationService : Service() {
             Log.w(TAG, "Location updating with null navigation")
         }
 
-        dirDisplay.let {
-            it.targetDirData = BleDirDisplay.DirData(
-                it.targetDirData.dir,
-                it.targetDirData.meters,
-                (location.speed * MPS_TO_KPH_COEFFICIENT).roundToInt()
-            )
-        }
+        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+            speed = (location.speed * MPS_TO_KPH_COEFFICIENT).roundToInt()
+        )
+
         dirDisplay.update()
     }
 

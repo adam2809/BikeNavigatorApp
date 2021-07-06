@@ -23,10 +23,10 @@ class BleDirDisplay(private val context: Context) {
         private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
         const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
-        const val DIR_DATA_LENGTH = 6
+        const val DIR_DATA_LENGTH = 7
     }
 
-    data class DirData(val dir: Dir, val meters: Int, val speed: Int = 0)
+    data class DirData(var dir: Dir, var meters: Int, var speed: Int, var mode: Mode)
 
     enum class Dir {
         NO_DIR,
@@ -50,6 +50,12 @@ class BleDirDisplay(private val context: Context) {
         FERRY
     }
 
+    enum class Mode {
+        NOTHING,
+        NAVIGATION,
+        SPEEDOMETER
+    }
+
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
@@ -60,7 +66,7 @@ class BleDirDisplay(private val context: Context) {
     var bluetoothGatt: BluetoothGatt? = null
     var displayCharacteristic: BluetoothGattCharacteristic? = null
 
-    var targetDirData: DirData = DirData(Dir.NO_DIR, 0)
+    var targetDirData: DirData = DirData(Dir.NO_DIR, 0, 0, Mode.NOTHING)
         set(value) {
             if (value != field) {
                 isTargetWritten = false
@@ -206,6 +212,7 @@ class BleDirDisplay(private val context: Context) {
                     this[4] = (it shr 0).toByte()
                 }
                 this[5] = targetDirData.speed.toByte()
+                this[6] = 2
             }
             isTargetWritten = gatt.writeCharacteristic(displayCharacteristic ?: run {
                 isTargetWritten = false

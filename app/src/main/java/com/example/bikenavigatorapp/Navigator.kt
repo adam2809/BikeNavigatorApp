@@ -48,13 +48,10 @@ class Navigator(
 
     init {
         Log.i(TAG, "Writing first step")
-        steps.let {
-            step = it[0]
-            dirDisplay.targetDirData = BleDirDisplay.DirData(
-                it[1].toDir(),
-                it[0].endLocation.distance(startLocation).toInt()
-            )
-        }
+        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+            dir = steps[1].toDir(),
+            meters = steps[0].endLocation.distance(startLocation).toInt()
+        )
     }
 
     private fun update() {
@@ -69,12 +66,9 @@ class Navigator(
 //        TODO meters of targetDirData and dir of targetDirData should be set at the same time this causes the deleay in changing dir when finishing and starting step
         meters?.let {
             Log.d(TAG, "Setting new meters=$it")
-            dirDisplay.let { disp ->
-                disp.targetDirData = BleDirDisplay.DirData(
-                    disp.targetDirData.dir,
-                    it
-                )
-            }
+            dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
+                meters = it
+            )
         }
 
         val (starts, ends) = findNearbyWaypoints(location!!)
@@ -99,12 +93,7 @@ class Navigator(
         }
         Log.d(TAG, "Dir is $dir")
 
-        dirDisplay.let {
-            it.targetDirData = BleDirDisplay.DirData(
-                dir,
-                meters ?: it.targetDirData.meters
-            )
-        }
+        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(dir = dir)
 
         prevWaypoints = Pair(starts, ends)
     }
