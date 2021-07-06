@@ -50,7 +50,8 @@ class Navigator(
         Log.i(TAG, "Writing first step")
         dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
             dir = steps[1].toDir(),
-            meters = steps[0].endLocation.distance(startLocation).toInt()
+            meters = steps[0].endLocation.distance(startLocation).toInt(),
+            mode = BleDirDisplay.Mode.NAVIGATION
         )
     }
 

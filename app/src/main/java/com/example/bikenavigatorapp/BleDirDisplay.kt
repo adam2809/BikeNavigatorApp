@@ -212,7 +212,7 @@ class BleDirDisplay(private val context: Context) {
                     this[4] = (it shr 0).toByte()
                 }
                 this[5] = targetDirData.speed.toByte()
-                this[6] = 2
+                this[6] = targetDirData.mode.ordinal.toByte()
             }
             isTargetWritten = gatt.writeCharacteristic(displayCharacteristic ?: run {
                 isTargetWritten = false
