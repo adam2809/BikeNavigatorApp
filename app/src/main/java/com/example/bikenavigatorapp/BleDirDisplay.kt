@@ -23,7 +23,7 @@ class BleDirDisplay(private val context: Context) {
         private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
         const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
-        const val DIR_DATA_LENGTH = 7
+        const val DIR_DATA_LENGTH = 6
     }
 
     data class DirData(var dir: Dir, var meters: Int, var speed: Int, var mode: Mode)
@@ -59,13 +59,13 @@ class BleDirDisplay(private val context: Context) {
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
-
     private var scanning = false
+
     private val handler = Handler()
-
     var bluetoothGatt: BluetoothGatt? = null
-    var displayCharacteristic: BluetoothGattCharacteristic? = null
 
+    var displayCharacteristic: BluetoothGattCharacteristic? = null
+    var modeCharacteristic: BluetoothGattCharacteristic? = null
     var targetDirData: DirData = DirData(Dir.NO_DIR, 0, 0, Mode.NOTHING)
         set(value) {
             if (value != field) {
@@ -73,6 +73,18 @@ class BleDirDisplay(private val context: Context) {
             }
             field = value
         }
+    private val displayCharacteristicValue: ByteArray
+        get() = ByteArray(DIR_DATA_LENGTH).apply {
+            this[0] = targetDirData.dir.ordinal.toByte()
+            targetDirData.meters.let {
+                this[1] = (it shr 24).toByte()
+                this[2] = (it shr 16).toByte()
+                this[3] = (it shr 8).toByte()
+                this[4] = (it shr 0).toByte()
+            }
+            this[5] = targetDirData.speed.toByte()
+        }
+
     var isTargetWritten = true
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
@@ -105,7 +117,10 @@ class BleDirDisplay(private val context: Context) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
-            displayCharacteristic = findCharacteristic(gatt).apply {
+            displayCharacteristic = findCharacteristic(
+                DISPLAY_SERVICE_UUID,
+                DISPLAY_CHARACTERISTIC_UUID
+            ).apply {
                 if (this != null) {
                     Log.i(TAG, "Found characteristic $this")
                 } else {
@@ -160,15 +175,18 @@ class BleDirDisplay(private val context: Context) {
     }
 
 
-    private fun findCharacteristic(gatt: BluetoothGatt?): BluetoothGattCharacteristic? {
-        val found = gatt!!.services.let {
+    private fun findCharacteristic(
+        serviceUuid: String,
+        charUuid: String
+    ): BluetoothGattCharacteristic? {
+        val found = bluetoothGatt!!.services.let {
             it.filter { service ->
                 service.also {
                     Log.d(
                         TAG,
-                        "Service in gatt discovered: ${service.uuid}"
+                        "Service in gatt found: ${service.uuid}"
                     )
-                }.uuid == UUID.fromString(DISPLAY_SERVICE_UUID);
+                }.uuid == UUID.fromString(serviceUuid);
             }
         }.flatMap {
             it.characteristics
@@ -177,9 +195,9 @@ class BleDirDisplay(private val context: Context) {
                 characteristic.also {
                     Log.d(
                         TAG,
-                        "Characteristic in gatt discovered: ${characteristic.uuid}"
+                        "Characteristic in gatt found: ${characteristic.uuid}"
                     )
-                }.uuid == UUID.fromString(DISPLAY_CHARACTERISTIC_UUID)
+                }.uuid == UUID.fromString(charUuid)
             }
         }
         return found.elementAtOrNull(0);
@@ -201,25 +219,20 @@ class BleDirDisplay(private val context: Context) {
             isTargetWritten = false
         }
 
-        bluetoothGatt?.let { gatt ->
-            displayCharacteristic?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-            displayCharacteristic?.value = ByteArray(DIR_DATA_LENGTH).apply {
-                this[0] = targetDirData.dir.ordinal.toByte()
-                targetDirData.meters.let {
-                    this[1] = (it shr 24).toByte()
-                    this[2] = (it shr 16).toByte()
-                    this[3] = (it shr 8).toByte()
-                    this[4] = (it shr 0).toByte()
-                }
-                this[5] = targetDirData.speed.toByte()
-                this[6] = targetDirData.mode.ordinal.toByte()
-            }
-            isTargetWritten = gatt.writeCharacteristic(displayCharacteristic ?: run {
-                isTargetWritten = false
-                return
-            })
+        bluetoothGatt?.let {
+            isTargetWritten = writeCharacteristic(displayCharacteristic, displayCharacteristicValue)
         } ?: run {
             Log.e(TAG, "Unable to write $targetDirData gatt connection is null")
+        }
+    }
+
+    private fun writeCharacteristic(char: BluetoothGattCharacteristic?, data: ByteArray): Boolean {
+        char?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
+        char?.value = data
+        return bluetoothGatt?.writeCharacteristic(char ?: run {
+            return false
+        }) ?: run {
+            return false
         }
     }
 
