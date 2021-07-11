@@ -319,7 +319,7 @@ class NavigationService : Service() {
     }
 
     fun getBleStatus(): Boolean {
-        return dirDisplay.isBtDeviceReadyForAccess()
+        return dirDisplay.characteristicsSanityCheck()
     }
 
     /**

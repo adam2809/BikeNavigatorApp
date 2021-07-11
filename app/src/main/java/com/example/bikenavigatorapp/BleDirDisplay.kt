@@ -1,6 +1,9 @@
 package com.example.bikenavigatorapp
 
-import android.bluetooth.*
+import android.bluetooth.BluetoothGatt
+import android.bluetooth.BluetoothGattCallback
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.bluetooth.le.ScanCallback
 import android.bluetooth.le.ScanResult
 import android.content.Context
@@ -15,10 +18,13 @@ class BleDirDisplay(private val context: Context) {
     companion object {
         private val TAG = "${BleDirDisplay::class.java.simpleName}(bnalt)"
         const val SCAN_PERIOD: Long = 500;
-        const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE";
-        const val DISPLAY_SERVICE_UUID = "000000ff-0000-1000-8000-00805f9b34fb";
-        const val DISPLAY_CHARACTERISTIC_UUID = "0000ff01-0000-1000-8000-00805f9b34fb";
-        const val MODE_CHARACTERISTIC_UUID = "0000ff02-0000-1000-8000-00805f9b34fb";
+        const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE"
+        val DISPLAY_SERVICE_UUID: UUID = UUID.fromString("000000ff-0000-1000-8000-00805f9b34fb")!!
+        val DISPLAY_CHARACTERISTIC_UUID: UUID =
+            UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb")!!
+        val MODE_CHARACTERISTIC_UUID: UUID =
+            UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb")!!
+        const val WAIT_FOR_DEVICE_TIMEOUT_MS = 300;
         const val GATT_STATE_SCANNING = 4;
         const val GATT_STATE_SCAN_SUCCESS = 5;
         const val GATT_STATE_SCAN_FAIL = 6;
@@ -66,8 +72,8 @@ class BleDirDisplay(private val context: Context) {
     private val handler = Handler()
     var bluetoothGatt: BluetoothGatt? = null
 
-    var displayCharacteristic: BluetoothGattCharacteristic? = null
-    var modeCharacteristic: BluetoothGattCharacteristic? = null
+    val uuidToDataMappingCharsToWrite = mutableMapOf<String, ByteArray>()
+
     var targetDirData: DirData = DirData(Dir.NO_DIR, 0, 0, Mode.NOTHING)
         set(value) {
             if (value != field) {
@@ -108,16 +114,12 @@ class BleDirDisplay(private val context: Context) {
                     Log.i(TAG, "Disconnected from GATT server.")
 
                     bluetoothGatt = null
-                    displayCharacteristic = null
-                    modeCharacteristic = null
                 }
                 BluetoothProfile.STATE_CONNECTING -> Log.i(TAG, "Connecting to GATT server.")
                 BluetoothProfile.STATE_DISCONNECTING -> {
                     Log.i(TAG, "Disconnecting from GATT server.")
 
                     bluetoothGatt = null
-                    displayCharacteristic = null
-                    modeCharacteristic = null
                 }
             }
             sendUpdateGattStateBroadcast(newState)
@@ -125,39 +127,11 @@ class BleDirDisplay(private val context: Context) {
 
         override fun onServicesDiscovered(gatt: BluetoothGatt?, status: Int) {
             super.onServicesDiscovered(gatt, status)
-            displayCharacteristic = findCharacteristic(
-                DISPLAY_SERVICE_UUID,
-                DISPLAY_CHARACTERISTIC_UUID
-            ).apply {
-                if (this != null) {
-                    Log.i(TAG, "Found display characteristic $this")
-                } else {
-                    Log.e(TAG, "Characteristic display was not found")
-                }
+            if (characteristicsSanityCheck()) {
+                Log.i(TAG, "All necessary uuids present on discovery")
+            } else {
+                Log.e(TAG, "Missing characteristics or service on discovery")
             }
-            modeCharacteristic = findCharacteristic(
-                DISPLAY_SERVICE_UUID,
-                MODE_CHARACTERISTIC_UUID
-            ).apply {
-                if (this != null) {
-                    Log.i(TAG, "Found mode characteristic $this")
-                } else {
-                    Log.e(TAG, "Characteristic mode was not found")
-                }
-            }
-        }
-
-        override fun onCharacteristicWrite(
-            gatt: BluetoothGatt?,
-            characteristic: BluetoothGattCharacteristic?,
-            status: Int
-        ) {
-            super.onCharacteristicWrite(gatt, characteristic, status)
-
-            Log.d(
-                TAG,
-                "Write result of characteristic with uuid=${characteristic?.uuid} was $status"
-            )
         }
     }
 
@@ -204,39 +178,6 @@ class BleDirDisplay(private val context: Context) {
         }
     }
 
-
-    private fun findCharacteristic(
-        serviceUuid: String,
-        charUuid: String
-    ): BluetoothGattCharacteristic? {
-        val found = bluetoothGatt!!.services.let {
-            it.filter { service ->
-                service.also {
-                    Log.d(
-                        TAG,
-                        "Service in gatt found: ${service.uuid}"
-                    )
-                }.uuid == UUID.fromString(serviceUuid);
-            }
-        }.flatMap {
-            it.characteristics
-        }.let {
-            it.filter { characteristic ->
-                characteristic.also {
-                    Log.d(
-                        TAG,
-                        "Characteristic in gatt found: ${characteristic.uuid}"
-                    )
-                }.uuid == UUID.fromString(charUuid)
-            }
-        }
-        return found.elementAtOrNull(0);
-    }
-
-    fun isBtDeviceReadyForAccess(): Boolean {
-        return displayCharacteristic != null && modeCharacteristic != null
-    }
-
     fun update() {
         if (!isTargetWritten) {
             writeTargetDir()
@@ -244,36 +185,50 @@ class BleDirDisplay(private val context: Context) {
     }
 
     private fun writeTargetDir() {
-        if (!isBtDeviceReadyForAccess()) {
+        if (characteristicsSanityCheck()) {
             Log.w(TAG, "Attempting to access device which is not ready")
             isTargetWritten = false
         }
 
         isTargetWritten =
             writeCharacteristic(DISPLAY_CHARACTERISTIC_UUID, displayCharacteristicValue)
-        val handler = Handler()
-        handler.postDelayed({
-            isTargetWritten = writeCharacteristic(MODE_CHARACTERISTIC_UUID, modeCharacteristicValue)
+        isTargetWritten = writeCharacteristic(MODE_CHARACTERISTIC_UUID, modeCharacteristicValue)
 
-            if (!isTargetWritten) {
-                Log.d(TAG, "Could not init write of characteristic")
-            }
-        }, 5000)
+        if (!isTargetWritten) {
+            Log.d(TAG, "Could not init write of characteristic")
+        }
     }
 
-    private fun writeCharacteristic(uuid: String, data: ByteArray): Boolean {
-        Log.d(
-            TAG,
-            "Trying to write characteristic with uuid=$uuid and data=${data.map { "$it, " }}"
-        )
-        val service = bluetoothGatt?.getService(UUID.fromString(DISPLAY_SERVICE_UUID))
-        val char = service?.getCharacteristic(UUID.fromString(uuid))
-        char?.writeType = BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT
-        char?.value = data
-        return bluetoothGatt?.writeCharacteristic(char ?: run {
+    private fun writeCharacteristic(
+        characterUUID: UUID,
+        value: ByteArray,
+        serviceUUID: UUID = DISPLAY_SERVICE_UUID
+    ): Boolean {
+        val gatt = bluetoothGatt ?: run {
             return false
-        }) ?: run {
-            return false
+        }
+
+        val start = System.currentTimeMillis()
+        while (System.currentTimeMillis() - start < WAIT_FOR_DEVICE_TIMEOUT_MS) {
+            if (gatt.isDeviceBusy()) {
+                try {
+                    Thread.sleep(10)
+                } catch (e: InterruptedException) {
+                    e.printStackTrace()
+                }
+            } else {
+                break
+            }
+        }
+
+        return try {
+            val service = gatt.getService(serviceUUID)
+            val characteristic = service.getCharacteristic(characterUUID)
+            characteristic.value = value
+            gatt.writeCharacteristic(characteristic)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
         }
     }
 
@@ -283,5 +238,37 @@ class BleDirDisplay(private val context: Context) {
             it.putExtra(GATT_CONN_STATE_CHANGE_EXTRA, state)
             context.sendBroadcast(it)
         }
+    }
+
+    private fun BluetoothGatt.isDeviceBusy(): Boolean {
+        var state = false
+        try {
+            val busyField = BluetoothGatt::class.java.getDeclaredField("mDeviceBusy")
+            busyField.isAccessible = true
+            state = busyField.get(this) as Boolean
+        } catch (e: IllegalAccessException) {
+            e.printStackTrace()
+        } catch (e: NoSuchFieldException) {
+            e.printStackTrace()
+        }
+        return state
+    }
+
+
+    fun characteristicsSanityCheck(): Boolean {
+        val service = bluetoothGatt?.getService(DISPLAY_SERVICE_UUID) ?: run {
+            Log.d(TAG, "Could not find display service")
+            return false
+        }
+
+        service.getCharacteristic(DISPLAY_CHARACTERISTIC_UUID) ?: run {
+            Log.d(TAG, "Could not find display char")
+            return false
+        }
+        service.getCharacteristic(MODE_CHARACTERISTIC_UUID) ?: run {
+            Log.d(TAG, "Could not find mode char")
+            return false
+        }
+        return true
     }
 }
