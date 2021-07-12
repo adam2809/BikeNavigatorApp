@@ -198,15 +198,22 @@ class BleDirDisplay(private val context: Context) {
             Log.w(TAG, "Attempting to access device which is not ready")
         }
 
-        val failedToInit = uuidToDataMappingCharsToWrite.entries.filterNot { (uuid, data) ->
+        val (succeeded, failed) = uuidToDataMappingCharsToWrite.entries.partition { (uuid, data) ->
             writeCharacteristic(uuid, data)
         }
 
-        if (failedToInit.isNotEmpty()) {
+        if (failed.isNotEmpty()) {
             Log.d(TAG, "Could not init writes of characteristics with uuids = ${
-                failedToInit.map { (uuid, _) -> "${uuid}, " }
+                failed.map { (uuid, _) -> "${uuid}, " }
             }")
         }
+
+        succeeded.forEach {
+            uuidToDataMappingCharsToWrite.remove(it.key)
+        }
+        Log.d(TAG, "Successfull init writes of characteristics with uuids = ${
+            succeeded.map { (uuid, _) -> "${uuid}, " }
+        }")
     }
 
     private fun writeCharacteristic(
