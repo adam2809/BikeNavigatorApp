@@ -67,26 +67,8 @@ class BleDirDisplay(private val context: Context) {
         SPEEDOMETER
     }
 
-    val currMode: Mode
-        get() {
-            bluetoothGatt?.getService(DISPLAY_SERVICE_UUID)
-                ?.getCharacteristic(MODE_CHARACTERISTIC_UUID)?.let {
-                return Mode.values()[it.value[0].toInt()]
-            } ?: run {
-                Log.w(TAG, "Trying to access mode value when it is unavailable")
-                return Mode.NOTHING
-            }
-        }
-    val currMeters: Int
-        get() {
-            bluetoothGatt?.getService(DISPLAY_SERVICE_UUID)
-                ?.getCharacteristic(METERS_CHARACTERISTIC_UUID)?.let {
-                return it.value.toInt()
-            } ?: run {
-                Log.w(TAG, "Trying to access meters value when it is unavailable")
-                return 0
-            }
-        }
+    var currMode: Mode = Mode.NOTHING
+    var currMeters = 0
 
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
@@ -178,10 +160,17 @@ class BleDirDisplay(private val context: Context) {
     }
 
     fun requestCharacteristicUpdate(uuid: UUID, data: Byte) {
+        if (uuid == MODE_CHARACTERISTIC_UUID) {
+            currMode = Mode.values()[data.toInt()]
+        }
+
         uuidToDataMappingCharsToWrite[uuid] = byteArrayOf(data)
     }
 
     fun requestCharacteristicUpdate(uuid: UUID, data: Int) {
+        if (uuid == METERS_CHARACTERISTIC_UUID) {
+            currMeters = data
+        }
         uuidToDataMappingCharsToWrite[uuid] = data.toByteArray()
     }
 
@@ -295,5 +284,22 @@ class BleDirDisplay(private val context: Context) {
             return false
         }
         return true
+    }
+
+    private fun getCurrCharValue(uuid: UUID, dataLen: Int): ByteArray {
+        val zerosRet = ByteArray(dataLen)
+        zerosRet.fill(0)
+        bluetoothGatt?.getService(DISPLAY_SERVICE_UUID)
+            ?.getCharacteristic(uuid)?.let {
+                if (it.value != null) {
+                    return it.value
+                } else {
+                    zerosRet.fill(0)
+                    return zerosRet
+                }
+            } ?: run {
+            Log.w(TAG, "Trying to access char($uuid) value when it is unavailable")
+            return zerosRet
+        }
     }
 }
