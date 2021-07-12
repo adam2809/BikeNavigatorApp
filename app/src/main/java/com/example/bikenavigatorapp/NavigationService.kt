@@ -296,8 +296,9 @@ class NavigationService : Service() {
             Log.w(TAG, "Location updating with null navigation")
         }
 
-        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-            speed = (location.speed * MPS_TO_KPH_COEFFICIENT).roundToInt()
+        dirDisplay.requestCharacteristicUpdate(
+            BleDirDisplay.SPEED_CHARACTERISTIC_UUID,
+            (location.speed * MPS_TO_KPH_COEFFICIENT).roundToInt().toByte()
         )
 
         dirDisplay.update()
@@ -327,15 +328,17 @@ class NavigationService : Service() {
      * @return true if was switched on false if off
      */
     fun switchSpeedometer(): Boolean {
-        if (dirDisplay.targetDirData.mode == BleDirDisplay.Mode.SPEEDOMETER) {
+        if (dirDisplay.currMode == BleDirDisplay.Mode.SPEEDOMETER) {
             if (nav == null && isRequestingLocationUpdates(this)) {
-                dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-                    mode = BleDirDisplay.Mode.NOTHING
+                dirDisplay.requestCharacteristicUpdate(
+                    BleDirDisplay.MODE_CHARACTERISTIC_UUID,
+                    BleDirDisplay.Mode.NOTHING
                 )
                 removeLocationUpdates()
             } else {
-                dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-                    mode = BleDirDisplay.Mode.NAVIGATION
+                dirDisplay.requestCharacteristicUpdate(
+                    BleDirDisplay.MODE_CHARACTERISTIC_UUID,
+                    BleDirDisplay.Mode.NAVIGATION
                 )
             }
             return false
@@ -343,8 +346,9 @@ class NavigationService : Service() {
             if (!isRequestingLocationUpdates(this)) {
                 requestLocationUpdates()
             }
-            dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-                mode = BleDirDisplay.Mode.SPEEDOMETER
+            dirDisplay.requestCharacteristicUpdate(
+                BleDirDisplay.MODE_CHARACTERISTIC_UUID,
+                BleDirDisplay.Mode.SPEEDOMETER
             )
             return true
         }

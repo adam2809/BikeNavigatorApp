@@ -63,3 +63,23 @@ fun getLocationTitle(context: Context): String? {
 fun Location.toDirApiLocation(): DirApi.Location {
     return DirApi.Location(this.latitude, this.longitude)
 }
+
+fun ByteArray.toInt(): Int {
+    if (this.size > 4) {
+        throw IllegalArgumentException("Byte array is too big")
+    }
+    var acc = 0
+    this.forEachIndexed { i, it ->
+        acc = acc or (it.toInt() shl 8 * i)
+    }
+    return acc
+}
+
+fun Int.toByteArray(): ByteArray {
+    return byteArrayOf(
+        (this shr 24).toByte(),
+        (this shr 16).toByte(),
+        (this shr 8).toByte(),
+        (this shr 0).toByte()
+    )
+}

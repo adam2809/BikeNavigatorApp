@@ -48,10 +48,17 @@ class Navigator(
 
     init {
         Log.i(TAG, "Writing first step")
-        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-            dir = steps[1].toDir(),
-            meters = steps[0].endLocation.distance(startLocation).toInt(),
-            mode = BleDirDisplay.Mode.NAVIGATION
+        dirDisplay.requestCharacteristicUpdate(
+            BleDirDisplay.DIR_CHARACTERISTIC_UUID,
+            steps[1].toDir()
+        )
+        dirDisplay.requestCharacteristicUpdate(
+            BleDirDisplay.METERS_CHARACTERISTIC_UUID,
+            steps[0].endLocation.distance(startLocation).toInt()
+        )
+        dirDisplay.requestCharacteristicUpdate(
+            BleDirDisplay.MODE_CHARACTERISTIC_UUID,
+            BleDirDisplay.Mode.NAVIGATION
         )
     }
 
@@ -67,8 +74,9 @@ class Navigator(
 //        TODO meters of targetDirData and dir of targetDirData should be set at the same time this causes the deleay in changing dir when finishing and starting step
         meters?.let {
             Log.d(TAG, "Setting new meters=$it")
-            dirDisplay.targetDirData = dirDisplay.targetDirData.copy(
-                meters = it
+            dirDisplay.requestCharacteristicUpdate(
+                BleDirDisplay.METERS_CHARACTERISTIC_UUID,
+                it
             )
         }
 
@@ -94,7 +102,10 @@ class Navigator(
         }
         Log.d(TAG, "Dir is $dir")
 
-        dirDisplay.targetDirData = dirDisplay.targetDirData.copy(dir = dir)
+        dirDisplay.requestCharacteristicUpdate(
+            BleDirDisplay.DIR_CHARACTERISTIC_UUID,
+            dir
+        )
 
         prevWaypoints = Pair(starts, ends)
     }
@@ -164,7 +175,7 @@ class Navigator(
         step?.let {
             val currDistance = it.endLocation.distance(location!!)
             if (abs(
-                    currDistance - (dirDisplay.targetDirData.meters)
+                    currDistance - (dirDisplay.currMeters)
                 ) > METERS_DISPLAY_INTERVAL
             ) {
                 return currDistance.toInt()

@@ -20,10 +20,14 @@ class BleDirDisplay(private val context: Context) {
         const val SCAN_PERIOD: Long = 500;
         const val DEVICE_ADDRESS = "24:A1:60:7F:1F:CE"
         val DISPLAY_SERVICE_UUID: UUID = UUID.fromString("000000ff-0000-1000-8000-00805f9b34fb")!!
-        val DISPLAY_CHARACTERISTIC_UUID: UUID =
+        val DIR_CHARACTERISTIC_UUID: UUID =
             UUID.fromString("0000ff01-0000-1000-8000-00805f9b34fb")!!
-        val MODE_CHARACTERISTIC_UUID: UUID =
+        val METERS_CHARACTERISTIC_UUID: UUID =
             UUID.fromString("0000ff02-0000-1000-8000-00805f9b34fb")!!
+        val SPEED_CHARACTERISTIC_UUID: UUID =
+            UUID.fromString("0000ff03-0000-1000-8000-00805f9b34fb")!!
+        val MODE_CHARACTERISTIC_UUID: UUID =
+            UUID.fromString("0000ff04-0000-1000-8000-00805f9b34fb")!!
         const val WAIT_FOR_DEVICE_TIMEOUT_MS = 300;
         const val GATT_STATE_SCANNING = 4;
         const val GATT_STATE_SCAN_SUCCESS = 5;
@@ -31,7 +35,6 @@ class BleDirDisplay(private val context: Context) {
         private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
         const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
-        const val DIR_DATA_LENGTH = 6
     }
 
     data class DirData(var dir: Dir, var meters: Int, var speed: Int, var mode: Mode)
@@ -64,6 +67,27 @@ class BleDirDisplay(private val context: Context) {
         SPEEDOMETER
     }
 
+    val currMode: Mode
+        get() {
+            bluetoothGatt?.getService(DISPLAY_SERVICE_UUID)
+                ?.getCharacteristic(MODE_CHARACTERISTIC_UUID)?.let {
+                return Mode.values()[it.value[0].toInt()]
+            } ?: run {
+                Log.w(TAG, "Trying to access mode value when it is unavailable")
+                return Mode.NOTHING
+            }
+        }
+    val currMeters: Int
+        get() {
+            bluetoothGatt?.getService(DISPLAY_SERVICE_UUID)
+                ?.getCharacteristic(METERS_CHARACTERISTIC_UUID)?.let {
+                return it.value.toInt()
+            } ?: run {
+                Log.w(TAG, "Trying to access meters value when it is unavailable")
+                return 0
+            }
+        }
+
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
@@ -72,32 +96,7 @@ class BleDirDisplay(private val context: Context) {
     private val handler = Handler()
     var bluetoothGatt: BluetoothGatt? = null
 
-    val uuidToDataMappingCharsToWrite = mutableMapOf<String, ByteArray>()
-
-    var targetDirData: DirData = DirData(Dir.NO_DIR, 0, 0, Mode.NOTHING)
-        set(value) {
-            if (value != field) {
-                isTargetWritten = false
-            }
-            field = value
-        }
-    private val displayCharacteristicValue: ByteArray
-        get() = ByteArray(DIR_DATA_LENGTH).apply {
-            this[0] = targetDirData.dir.ordinal.toByte()
-            targetDirData.meters.let {
-                this[1] = (it shr 24).toByte()
-                this[2] = (it shr 16).toByte()
-                this[3] = (it shr 8).toByte()
-                this[4] = (it shr 0).toByte()
-            }
-            this[5] = targetDirData.speed.toByte()
-        }
-    private val modeCharacteristicValue: ByteArray
-        get() = ByteArray(1).apply {
-            this[0] = targetDirData.mode.ordinal.toByte()
-        }
-
-    var isTargetWritten = true
+    private val uuidToDataMappingCharsToWrite = mutableMapOf<UUID, ByteArray>()
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
@@ -178,24 +177,35 @@ class BleDirDisplay(private val context: Context) {
         }
     }
 
-    fun update() {
-        if (!isTargetWritten) {
-            writeTargetDir()
-        }
+    fun requestCharacteristicUpdate(uuid: UUID, data: Byte) {
+        uuidToDataMappingCharsToWrite[uuid] = byteArrayOf(data)
     }
 
-    private fun writeTargetDir() {
+    fun requestCharacteristicUpdate(uuid: UUID, data: Int) {
+        uuidToDataMappingCharsToWrite[uuid] = data.toByteArray()
+    }
+
+    fun <E : Enum<E>> requestCharacteristicUpdate(uuid: UUID, data: E) {
+        requestCharacteristicUpdate(uuid, data.ordinal.toByte())
+    }
+
+    fun update() {
+        writeRequestedCharacteristics()
+    }
+
+    private fun writeRequestedCharacteristics() {
         if (characteristicsSanityCheck()) {
             Log.w(TAG, "Attempting to access device which is not ready")
-            isTargetWritten = false
         }
 
-        isTargetWritten =
-            writeCharacteristic(DISPLAY_CHARACTERISTIC_UUID, displayCharacteristicValue)
-        isTargetWritten = writeCharacteristic(MODE_CHARACTERISTIC_UUID, modeCharacteristicValue)
+        val failedToInit = uuidToDataMappingCharsToWrite.entries.filterNot { (uuid, data) ->
+            writeCharacteristic(uuid, data)
+        }
 
-        if (!isTargetWritten) {
-            Log.d(TAG, "Could not init write of characteristic")
+        if (failedToInit.isNotEmpty()) {
+            Log.d(TAG, "Could not init writes of characteristics with uuids = ${
+                failedToInit.map { (uuid, _) -> "${uuid}, " }
+            }")
         }
     }
 
@@ -261,8 +271,16 @@ class BleDirDisplay(private val context: Context) {
             return false
         }
 
-        service.getCharacteristic(DISPLAY_CHARACTERISTIC_UUID) ?: run {
-            Log.d(TAG, "Could not find display char")
+        service.getCharacteristic(DIR_CHARACTERISTIC_UUID) ?: run {
+            Log.d(TAG, "Could not find dir char")
+            return false
+        }
+        service.getCharacteristic(METERS_CHARACTERISTIC_UUID) ?: run {
+            Log.d(TAG, "Could not find meters char")
+            return false
+        }
+        service.getCharacteristic(SPEED_CHARACTERISTIC_UUID) ?: run {
+            Log.d(TAG, "Could not find speed char")
             return false
         }
         service.getCharacteristic(MODE_CHARACTERISTIC_UUID) ?: run {
