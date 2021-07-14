@@ -37,8 +37,6 @@ class BleDirDisplay(private val context: Context) {
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
     }
 
-    data class DirData(var dir: Dir, var meters: Int, var speed: Int, var mode: Mode)
-
     enum class Dir {
         NO_DIR,
         TURN_SHARP_LEFT,
