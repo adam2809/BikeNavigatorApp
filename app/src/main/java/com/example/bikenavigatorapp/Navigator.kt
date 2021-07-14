@@ -25,9 +25,21 @@ fun DirApi.Location.distance(loc: Location): Double {
     return this.distance(DirApi.Location(loc.latitude, loc.longitude))
 }
 
+
+fun DirApi.Location.distance(line: Navigator.Line): Double {
+    line.perpendicular(
+        BigDecimal(this.lat.toString()),
+        BigDecimal(this.lng.toString())
+    ).let {
+        return this.distance(line.intersection(it))
+    }
+}
+
+
+//TODO new maths dont work when for example there is a u-turn on a highway and two steps are parallel
 class Navigator(
     private val steps: List<DirApi.Step>,
-    private val startLocation: Location,
+    startLocation: Location,
     private val dirDisplay: BleDirDisplay
 ) {
     companion object {
@@ -43,8 +55,6 @@ class Navigator(
             field = value
             update()
         }
-    private var step: DirApi.Step? = null
-    private var prevWaypoints: Pair<List<DirApi.Step>, List<DirApi.Step>>? = null
 
     init {
         Log.i(TAG, "Writing first step")
@@ -68,10 +78,26 @@ class Navigator(
         }
         Log.d(TAG, "Location is = ${location?.latitude}  ${location?.longitude}")
 
+        val currStep = findCurrStepIndex()
 
-        val meters: Int? = checkForNewMeters()
+        val index = currStep?.index ?: run {
+            Log.w(TAG, "Step $currStep does not have an index")
+        }
+        val dir: BleDirDisplay.Dir = when {
+            currStep == null -> BleDirDisplay.Dir.NO_DIR
+            index < steps.lastIndex -> steps[index + 1].toDir()
+            else -> currStep.toDir()
+        }
 
-//        TODO meters of targetDirData and dir of targetDirData should be set at the same time this causes the deleay in changing dir when finishing and starting step
+        Log.d(TAG, "Dir is $currStep")
+
+        var meters: Int? = 0
+        currStep?.let {
+            meters = checkForNewMeters(it)
+        } ?: run {
+            Log.w(TAG, "Trying to set meters when curr step was not found")
+        }
+
         meters?.let {
             Log.d(TAG, "Setting new meters=$it")
             dirDisplay.requestCharacteristicUpdate(
@@ -80,71 +106,10 @@ class Navigator(
             )
         }
 
-        val (starts, ends) = findNearbyWaypoints(location!!)
-        if (updateStepByWaypoints(starts, ends)) {
-            Log.d(TAG, "By waypoint step search succeeded")
-        }
-
-
-        if (checkStepByBounds()) {
-            Log.d(TAG, "By bounds step search succeeded")
-        }
-
-        Log.d(TAG, "Current step = $step")
-
-        val index = step?.index ?: run {
-            Log.w(TAG, "Step $step does not have an index")
-        }
-        val dir: BleDirDisplay.Dir = when {
-            step == null -> BleDirDisplay.Dir.NO_DIR
-            index < steps.lastIndex -> steps[index + 1].toDir()
-            else -> step?.toDir() ?: BleDirDisplay.Dir.NO_DIR
-        }
-        Log.d(TAG, "Dir is $dir")
-
         dirDisplay.requestCharacteristicUpdate(
             BleDirDisplay.DIR_CHARACTERISTIC_UUID,
             dir
         )
-
-        prevWaypoints = Pair(starts, ends)
-    }
-
-    private fun findNearbyWaypoints(loc: Location): Pair<List<DirApi.Step>, List<DirApi.Step>> {
-        return Pair(
-            steps.filter {
-                it.startLocation.distance(loc) < WAYPOINT_RADIUS
-            },
-            steps.filter {
-                it.endLocation.distance(loc) < WAYPOINT_RADIUS
-            }
-        )
-    }
-
-    private fun updateStepByWaypoints(starts: List<DirApi.Step>, ends: List<DirApi.Step>): Boolean {
-        val (prevStarts, prevEnds) = prevWaypoints ?: Pair(null, null)
-        var ret = false
-
-        if (prevEnds.isNullOrEmpty() && ends.isNotEmpty()) {
-            ends.first().let {
-                if (step != null) {
-                    Log.i(TAG, "Ending step: $step")
-                    step = null
-                    ret = true
-                }
-            }
-        }
-
-        if (prevStarts.isNullOrEmpty() && starts.isNotEmpty()) {
-            starts.first().let {
-                if (step == null) {
-                    Log.i(TAG, "Starting step: $it")
-                    step = it
-                    ret = true
-                }
-            }
-        }
-        return ret
     }
 
     private fun DirApi.Step.toDir(): BleDirDisplay.Dir {
@@ -171,8 +136,8 @@ class Navigator(
         }
     }
 
-    private fun checkForNewMeters(): Int? {
-        step?.let {
+    private fun checkForNewMeters(step: DirApi.Step): Int? {
+        step.let {
             val currDistance = it.endLocation.distance(location!!)
             if (abs(
                     currDistance - (dirDisplay.currMeters)
@@ -184,9 +149,6 @@ class Navigator(
         return null
     }
 
-    private val CORRIDOR_WIDTH = BigDecimal("100")
-    private val METERS_TO_ARC_COEFF = BigDecimal("0.000008999280057498208")
-
     data class Line(val inc: BigDecimal, val lng: BigDecimal) {
         constructor(
             aLat: BigDecimal, aLng: BigDecimal,
@@ -196,25 +158,55 @@ class Navigator(
             (bLat - (aLat - bLat) / (aLng - bLng) * bLng)
         )
 
+        fun perpendicular(lat: BigDecimal, lng: BigDecimal): Line {
+            (BigDecimal("1") / -inc).let { newInc ->
+                return Line(newInc, lat - newInc * lng)
+            }
+        }
+
         fun value(lat: BigDecimal, lng: BigDecimal): BigDecimal {
             return lat - this.inc * lng - this.lng
         }
-    }
 
-    private fun checkStepByBounds(): Boolean {
-        steps.reversed().forEach {
-            val loc = location?.let { l ->
-                DirApi.Location(l.latitude, l.longitude)
-            } ?: return false
-            if (isPointInBounds(it.startLocation, it.endLocation, loc)) {
-                step = it
-                return true
+        fun intersection(line: Line): DirApi.Location {
+            ((line.lng - this.lng) / (this.inc - line.inc)).let { retLat ->
+                return DirApi.Location((this.inc * retLat + this.lng).toDouble(), retLat.toDouble())
             }
         }
-        return false;
     }
 
-    private fun isPointInBounds(
+    private fun findCurrStepIndex(): DirApi.Step? {
+        steps.filter {
+            isPointBetweenPerpendicularLines(
+                it.startLocation,
+                it.endLocation,
+                location?.toDirApiLocation() ?: run {
+                    Log.e(TAG, "Trying to update location without set location")
+                    DirApi.Location(0.0, 0.0)
+                }
+            )
+        }.let {
+            Log.d(
+                TAG,
+                "Filtered steps size is: ${it.size}, indexes=${it.map { step -> "${step.index}, " }}"
+            )
+            return when (it.size) {
+                0 -> null
+                1 -> it.first()
+                else -> it.minByOrNull { step ->
+                    val startLat = BigDecimal(step.startLocation.lat.toString())
+                    val startLng = BigDecimal(step.startLocation.lng.toString())
+                    val endLat = BigDecimal(step.endLocation.lat.toString())
+                    val endLng = BigDecimal(step.endLocation.lng.toString())
+
+                    val startEndLine = Line(startLat, startLng, endLat, endLng)
+                    location!!.toDirApiLocation().distance(startEndLine)
+                }
+            }
+        }
+    }
+
+    private fun isPointBetweenPerpendicularLines(
         start: DirApi.Location,
         end: DirApi.Location,
         point: DirApi.Location
@@ -230,37 +222,24 @@ class Navigator(
             startLat, startLng,
             endLat, endLng
         );
+        val perpendicularToStartEndAtStart = lineStartEnd.perpendicular(startLat, startLng)
+        val perpendicularToStartEndAtEnd = lineStartEnd.perpendicular(endLat, endLng)
 
-        val boundLine1 = Line(
-            lineStartEnd.inc,
-            lineStartEnd.lng + (CORRIDOR_WIDTH / BigDecimal("2")) * METERS_TO_ARC_COEFF
-        );
-        val boundLine2 = Line(
-            lineStartEnd.inc,
-            lineStartEnd.lng - (CORRIDOR_WIDTH / BigDecimal("2")) * METERS_TO_ARC_COEFF
-        );
-
-        val isPointBetweenStartAndEnd = isPointBetweenLines(
-            boundLine1, boundLine2,
+        return isPointBetweenLines(
+            perpendicularToStartEndAtStart, perpendicularToStartEndAtEnd,
             pointLat, pointLng,
+            endLat, endLng,
             startLat, startLng
-        ) &&
-                start.distance(end).let {
-                    point.distance(start) <= it && point.distance(end) <= it
-                }
-
-        return (isPointBetweenStartAndEnd || point.distance(start) < WAYPOINT_RADIUS) && point.distance(
-            end
-        ) >= WAYPOINT_RADIUS
+        )
     }
 
     private fun isPointBetweenLines(
         l: Line, k: Line,
         pointLat: BigDecimal, pointLng: BigDecimal,
-        refLat: BigDecimal, refLng: BigDecimal
+        lLineRefLat: BigDecimal, lLineRefLng: BigDecimal,
+        kLineRefLat: BigDecimal, kLineRefLng: BigDecimal
     ): Boolean {
-        return l.value(pointLat, pointLng).signum() == l.value(refLat, refLng).signum() &&
-                k.value(pointLat, pointLng).signum() == k.value(refLat, refLng).signum()
+        return l.value(pointLat, pointLng).signum() == l.value(lLineRefLat, lLineRefLng).signum() &&
+                k.value(pointLat, pointLng).signum() == k.value(kLineRefLat, kLineRefLng).signum()
     }
-
 }

@@ -48,7 +48,6 @@ fun Location.distance(line: Line): Double {
     ).let {
         return this.distance(line.intersection(it))
     }
-
 }
 
 data class Line(val inc: BigDecimal, val lng: BigDecimal) {
@@ -119,12 +118,12 @@ fun isPointBetweenLines(
 fun main(arr: Array<String>) {
 
 // santa monica blvd/n maple drive
-    val start = Location(34.076576, -118.396676)
+    val start = Location(52.2245923, 21.0949837)
 
 // santa monica blvd/rodeo drive
-    val end = Location(34.070618, -118.404384)
+    val end = Location(52.2230988, 21.1012119)
 
-    val curr = Location(34.072689, -118.403739)
+    val curr = Location(52.223490, 21.099493)
 
 
     val startLat = BigDecimal(start.lat.toString())
@@ -137,8 +136,5 @@ fun main(arr: Array<String>) {
         endLat, endLng
     )
 
-    println(curr.distance(lineStartEnd))
-
-
-//    println(isPointBetweenPerpendicularLines(start,end,curr))
+    println(isPointBetweenPerpendicularLines(start, end, curr))
 }

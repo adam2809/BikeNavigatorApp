@@ -181,7 +181,7 @@ class BleDirDisplay(private val context: Context) {
     }
 
     private fun writeRequestedCharacteristics() {
-        if (characteristicsSanityCheck()) {
+        if (!characteristicsSanityCheck()) {
             Log.w(TAG, "Attempting to access device which is not ready")
         }
 
