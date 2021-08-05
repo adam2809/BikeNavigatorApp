@@ -60,8 +60,8 @@ fun getLocationTitle(context: Context): String? {
     )
 }
 
-fun Location.toDirApiLocation(): DirApi.Location {
-    return DirApi.Location(this.latitude, this.longitude)
+fun Location.toDirApiLocation(): Loc {
+    return Loc(this.latitude, this.longitude)
 }
 
 fun ByteArray.toInt(): Int {

@@ -5,9 +5,6 @@ import android.content.Context
 import android.util.Log
 import com.android.volley.*
 import com.android.volley.toolbox.*
-import com.fasterxml.jackson.annotation.JsonIgnore
-import com.fasterxml.jackson.annotation.JsonIgnoreProperties
-import com.fasterxml.jackson.annotation.JsonProperty
 import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import com.fasterxml.jackson.module.kotlin.readValue
 import org.json.JSONArray
@@ -25,27 +22,6 @@ class DirApi(
         const val DIR_API_URL = "https://maps.googleapis.com/maps/api/directions/json"
         private val TAG = "${DirApi::class.java.simpleName}(bnalt)"
         const val REQ_TAG = "DirApiRequest";
-    }
-
-    data class TextVal(val text: String, val value: Int)
-    data class Location(val lat: Double, val lng: Double)
-
-    @JsonIgnoreProperties(ignoreUnknown = true)
-    data class Step(
-        @JsonIgnore
-        var index: Int?,
-        val distance: TextVal,
-        val duration: TextVal,
-        val maneuver: String?,
-        @JsonProperty("start_location")
-        val startLocation: Location,
-        @JsonProperty("end_location")
-        val endLocation: Location,
-        @JsonProperty("html_instructions")
-        val htmlInstructions: String,
-        @JsonProperty("travel_mode")
-        val travelMode: String
-    ) {
     }
 
     private val mapper = jacksonObjectMapper()
@@ -120,11 +96,11 @@ class DirApi(
         }
     )
 
-    private fun getUrlParams(origin: Location, dest: Location): String {
+    private fun getUrlParams(origin: Loc, dest: Loc): String {
         return "origin=${origin.lat},${origin.lng}&destination=${dest.lat},${dest.lng}&mode=bicycling&key=${BuildConfig.DIR_API_KEY}&alternatives=true"
     }
 
-    fun updateSteps(start: Location, sharePlaceUrl: String) {
+    fun updateSteps(start: Loc, sharePlaceUrl: String) {
         queue.add(ResolveSharePlaceUrlRequest(sharePlaceUrl) { dest, routeIndex ->
             updateSteps(start, dest, routeIndex)
         })
@@ -132,7 +108,7 @@ class DirApi(
 
 
     @SuppressLint("MissingPermission")
-    fun updateSteps(start: Location, dest: Location, routeIndex: Int) {
+    fun updateSteps(start: Loc, dest: Loc, routeIndex: Int) {
         queue.add(
             DirApiRequest(
                 getUrlParams(

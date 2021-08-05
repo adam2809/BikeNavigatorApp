@@ -37,34 +37,6 @@ class BleDirDisplay(private val context: Context) {
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
     }
 
-    enum class Dir {
-        NO_DIR,
-        TURN_SHARP_LEFT,
-        UTURN_RIGHT,
-        TURN_SLIGHT_RIGHT,
-        MERGE,
-        ROUNDABOUT_LEFT,
-        ROUNDABOUT_RIGHT,
-        UTURN_LEFT,
-        TURN_SLIGHT_LEFT,
-        TURN_LEFT,
-        RAMP_RIGHT,
-        TURN_RIGHT,
-        FORK_RIGHT,
-        STRAIGHT,
-        FORK_LEFT,
-        FERRY_TRAIN,
-        TURN_SHARP_RIGHT,
-        RAMP_LEFT,
-        FERRY
-    }
-
-    enum class Mode {
-        NOTHING,
-        NAVIGATION,
-        SPEEDOMETER
-    }
-
     var currMode: Mode = Mode.NOTHING
     var currMeters = 0
 

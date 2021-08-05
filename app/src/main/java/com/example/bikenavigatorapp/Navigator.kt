@@ -3,42 +3,12 @@ package com.example.bikenavigatorapp
 import android.location.Location
 import android.util.Log
 import java.math.BigDecimal
-import kotlin.math.*
-
-fun DirApi.Location.toRadians(): Pair<Double, Double> {
-    return Pair(lat * Math.PI / 180, lng * Math.PI / 180)
-}
-
-
-fun DirApi.Location.distance(loc: DirApi.Location): Double {
-    val (f1, l1) = this.toRadians()
-    val (f2, l2) = loc.toRadians()
-    val (df, dl) = Pair(abs(f1 - f2), abs(l1 - l2))
-
-    val a = sin(df / 2).pow(2) + cos(f1) * cos(f2) * sin(dl / 2).pow(2)
-    val c = atan2(sqrt(a), sqrt(1 - a))
-
-    return Navigator.EARTH_RADIUS_METERS * c
-}
-
-fun DirApi.Location.distance(loc: Location): Double {
-    return this.distance(DirApi.Location(loc.latitude, loc.longitude))
-}
-
-
-fun DirApi.Location.distance(line: Navigator.Line): Double {
-    line.perpendicular(
-        BigDecimal(this.lat.toString()),
-        BigDecimal(this.lng.toString())
-    ).let {
-        return this.distance(line.intersection(it))
-    }
-}
+import kotlin.math.abs
 
 
 //TODO new maths dont work when for example there is a u-turn on a highway and two steps are parallel
 class Navigator(
-    private val steps: List<DirApi.Step>,
+    private val steps: List<Step>,
     startLocation: Location,
     private val dirDisplay: BleDirDisplay
 ) {
@@ -64,11 +34,11 @@ class Navigator(
         )
         dirDisplay.requestCharacteristicUpdate(
             BleDirDisplay.METERS_CHARACTERISTIC_UUID,
-            steps[0].endLocation.distance(startLocation).toInt()
+            steps[0].endLoc.distance(startLocation).toInt()
         )
         dirDisplay.requestCharacteristicUpdate(
             BleDirDisplay.MODE_CHARACTERISTIC_UUID,
-            BleDirDisplay.Mode.NAVIGATION
+            Mode.NAVIGATION
         )
     }
 
@@ -83,8 +53,8 @@ class Navigator(
         val index = currStep?.index ?: run {
             Log.w(TAG, "Step $currStep does not have an index")
         }
-        val dir: BleDirDisplay.Dir = when {
-            currStep == null -> BleDirDisplay.Dir.NO_DIR
+        val dir: Dir = when {
+            currStep == null -> Dir.NO_DIR
             index < steps.lastIndex -> steps[index + 1].toDir()
             else -> currStep.toDir()
         }
@@ -112,33 +82,9 @@ class Navigator(
         )
     }
 
-    private fun DirApi.Step.toDir(): BleDirDisplay.Dir {
-        return when (this.maneuver) {
-            "turn-sharp-left" -> BleDirDisplay.Dir.TURN_SHARP_LEFT
-            "uturn-right" -> BleDirDisplay.Dir.UTURN_RIGHT
-            "turn-slight-right" -> BleDirDisplay.Dir.TURN_SLIGHT_RIGHT
-            "merge" -> BleDirDisplay.Dir.MERGE
-            "roundabout-left" -> BleDirDisplay.Dir.ROUNDABOUT_LEFT
-            "roundabout-right" -> BleDirDisplay.Dir.ROUNDABOUT_RIGHT
-            "uturn-left" -> BleDirDisplay.Dir.UTURN_LEFT
-            "turn-slight-left" -> BleDirDisplay.Dir.TURN_SLIGHT_LEFT
-            "turn-left" -> BleDirDisplay.Dir.TURN_LEFT
-            "ramp-right" -> BleDirDisplay.Dir.RAMP_RIGHT
-            "turn-right" -> BleDirDisplay.Dir.TURN_RIGHT
-            "fork-right" -> BleDirDisplay.Dir.FORK_RIGHT
-            "straight" -> BleDirDisplay.Dir.STRAIGHT
-            "fork-left" -> BleDirDisplay.Dir.FORK_LEFT
-            "ferry-train" -> BleDirDisplay.Dir.FERRY_TRAIN
-            "turn-sharp-right" -> BleDirDisplay.Dir.TURN_SHARP_RIGHT
-            "ramp-left" -> BleDirDisplay.Dir.RAMP_LEFT
-            "ferry" -> BleDirDisplay.Dir.FERRY
-            else -> BleDirDisplay.Dir.NO_DIR
-        }
-    }
-
-    private fun checkForNewMeters(step: DirApi.Step): Int? {
+    private fun checkForNewMeters(step: Step): Int? {
         step.let {
-            val currDistance = it.endLocation.distance(location!!)
+            val currDistance = it.endLoc.distance(location!!)
             if (abs(
                     currDistance - (dirDisplay.currMeters)
                 ) > METERS_DISPLAY_INTERVAL
@@ -149,40 +95,14 @@ class Navigator(
         return null
     }
 
-    data class Line(val inc: BigDecimal, val lng: BigDecimal) {
-        constructor(
-            aLat: BigDecimal, aLng: BigDecimal,
-            bLat: BigDecimal, bLng: BigDecimal
-        ) : this(
-            (aLat - bLat) / (aLng - bLng),
-            (bLat - (aLat - bLat) / (aLng - bLng) * bLng)
-        )
-
-        fun perpendicular(lat: BigDecimal, lng: BigDecimal): Line {
-            (BigDecimal("1") / -inc).let { newInc ->
-                return Line(newInc, lat - newInc * lng)
-            }
-        }
-
-        fun value(lat: BigDecimal, lng: BigDecimal): BigDecimal {
-            return lat - this.inc * lng - this.lng
-        }
-
-        fun intersection(line: Line): DirApi.Location {
-            ((line.lng - this.lng) / (this.inc - line.inc)).let { retLat ->
-                return DirApi.Location((this.inc * retLat + this.lng).toDouble(), retLat.toDouble())
-            }
-        }
-    }
-
-    private fun findCurrStepIndex(): DirApi.Step? {
+    private fun findCurrStepIndex(): Step? {
         steps.filter {
             isPointBetweenPerpendicularLines(
-                it.startLocation,
-                it.endLocation,
+                it.startLoc,
+                it.endLoc,
                 location?.toDirApiLocation() ?: run {
                     Log.e(TAG, "Trying to update location without set location")
-                    DirApi.Location(0.0, 0.0)
+                    Loc(0.0, 0.0)
                 }
             )
         }.let {
@@ -194,10 +114,10 @@ class Navigator(
                 0 -> null
                 1 -> it.first()
                 else -> it.minByOrNull { step ->
-                    val startLat = BigDecimal(step.startLocation.lat.toString())
-                    val startLng = BigDecimal(step.startLocation.lng.toString())
-                    val endLat = BigDecimal(step.endLocation.lat.toString())
-                    val endLng = BigDecimal(step.endLocation.lng.toString())
+                    val startLat = BigDecimal(step.startLoc.lat.toString())
+                    val startLng = BigDecimal(step.startLoc.lng.toString())
+                    val endLat = BigDecimal(step.endLoc.lat.toString())
+                    val endLng = BigDecimal(step.endLoc.lng.toString())
 
                     val startEndLine = Line(startLat, startLng, endLat, endLng)
                     location!!.toDirApiLocation().distance(startEndLine)
@@ -207,9 +127,9 @@ class Navigator(
     }
 
     private fun isPointBetweenPerpendicularLines(
-        start: DirApi.Location,
-        end: DirApi.Location,
-        point: DirApi.Location
+        start: Loc,
+        end: Loc,
+        point: Loc
     ): Boolean {
         val startLat = BigDecimal(start.lat.toString())
         val startLng = BigDecimal(start.lng.toString())

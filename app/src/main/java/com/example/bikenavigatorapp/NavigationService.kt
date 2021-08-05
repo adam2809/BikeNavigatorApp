@@ -328,17 +328,17 @@ class NavigationService : Service() {
      * @return true if was switched on false if off
      */
     fun switchSpeedometer(): Boolean {
-        if (dirDisplay.currMode == BleDirDisplay.Mode.SPEEDOMETER) {
+        if (dirDisplay.currMode == Mode.SPEEDOMETER) {
             if (nav == null && isRequestingLocationUpdates(this)) {
                 dirDisplay.requestCharacteristicUpdate(
                     BleDirDisplay.MODE_CHARACTERISTIC_UUID,
-                    BleDirDisplay.Mode.NOTHING
+                    Mode.NOTHING
                 )
                 removeLocationUpdates()
             } else {
                 dirDisplay.requestCharacteristicUpdate(
                     BleDirDisplay.MODE_CHARACTERISTIC_UUID,
-                    BleDirDisplay.Mode.NAVIGATION
+                    Mode.NAVIGATION
                 )
             }
             return false
@@ -348,7 +348,7 @@ class NavigationService : Service() {
             }
             dirDisplay.requestCharacteristicUpdate(
                 BleDirDisplay.MODE_CHARACTERISTIC_UUID,
-                BleDirDisplay.Mode.SPEEDOMETER
+                Mode.SPEEDOMETER
             )
             return true
         }
