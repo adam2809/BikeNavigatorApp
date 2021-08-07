@@ -5,6 +5,8 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
+import android.bluetooth.le.BluetoothLeScanner
+import android.bluetooth.le.ScanResult
 import android.content.*
 import android.content.pm.PackageManager
 import android.os.Build
@@ -176,11 +178,20 @@ class MainActivity : AppCompatActivity() {
     private fun registerGattConnStateChangeReceiver() {
         val gattConnStateChangeBr = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                updateConnectionStatusTextView(
-                    intent?.extras?.getInt(BleDirDisplay.GATT_CONN_STATE_CHANGE_EXTRA) ?: run {
-                        Log.w(TAG, "No GATT_CONN_STATE_CHANGE_EXTRA provided")
-                        return
-                    })
+                intent?.extras?.getInt(BleDirDisplay.GATT_CONN_STATE_CHANGE_EXTRA)?.let {
+                    Log.d(TAG, "Receiving gatt conn state change broadcast")
+                    updateConnectionStatusTextView(it)
+                }
+
+                intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
+                    Log.d(TAG, "Receiving ble scan results with callback type $extra")
+                    val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
+                        BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
+                    )
+                    scanResults?.firstOrNull()?.let {
+                        mService?.connectBle(it)
+                    }
+                }
             }
         }
 

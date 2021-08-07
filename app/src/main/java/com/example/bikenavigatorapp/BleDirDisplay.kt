@@ -1,11 +1,13 @@
 package com.example.bikenavigatorapp
 
+import android.app.PendingIntent
 import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
 import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -86,47 +88,26 @@ class BleDirDisplay(private val context: Context) {
         }
     }
 
-
-    fun initiateScan() {
-        scanLeDevice { res ->
-            bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)
-        }
+    //TODO delete
+    fun connectBle(res: ScanResult) {
+        bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)
     }
 
-    private fun scanLeDevice(ifFoundCb: (ScanResult) -> Unit) {
-        var found: ScanResult? = null
+    //TODO delete
+    fun initiateScan() {
+        scanLeDevice()
+    }
 
-        val leScanCallback: ScanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                super.onScanResult(callbackType, result)
-                Log.d(TAG, "New scan result device: $result");
-                if (result.device.address == DEVICE_ADDRESS) {
-                    found = result
-                    Log.i(TAG, "Found device: $result");
-                }
-            }
-        }
-
-        bluetoothLeScanner.let { scanner ->
-            if (!scanning) {
-                handler.postDelayed({
-                    Log.i(TAG, "Stopping scan (handler)");
-                    scanning = false
-                    scanner.stopScan(leScanCallback)
-                    found?.let {
-                        Log.i(TAG, "Found $found");
-                        sendUpdateGattStateBroadcast(GATT_STATE_SCAN_SUCCESS)
-                        ifFoundCb(it);
-                    } ?: run {
-                        sendUpdateGattStateBroadcast(GATT_STATE_SCAN_FAIL)
-                    }
-                }, SCAN_PERIOD)
-                Log.i(TAG, "Starting scan for ${SCAN_PERIOD} ms");
-                scanning = true
-                sendUpdateGattStateBroadcast(GATT_STATE_SCANNING)
-                scanner.startScan(leScanCallback)
-            }
-        }
+    private fun scanLeDevice() {
+        val settings = ScanSettings.Builder().build()
+        val filter = ScanFilter.Builder().setDeviceAddress(DEVICE_ADDRESS).build()
+        val pendingIntent = PendingIntent.getBroadcast(
+            context,
+            0,
+            Intent(GATT_CONN_STATE_CHANGE_ACTION),
+            PendingIntent.FLAG_UPDATE_CURRENT
+        )
+        bluetoothLeScanner.startScan(listOf(filter), settings, pendingIntent)
     }
 
     fun requestCharacteristicUpdate(uuid: UUID, data: Byte) {

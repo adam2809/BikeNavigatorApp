@@ -1,6 +1,7 @@
 package com.example.bikenavigatorapp
 
 import android.app.*
+import android.bluetooth.le.ScanResult
 import android.content.Intent
 import android.content.res.Configuration
 import android.location.Location
@@ -315,6 +316,12 @@ class NavigationService : Service() {
         }
     }
 
+    //TODO delete
+    fun connectBle(res: ScanResult) {
+        dirDisplay.connectBle(res)
+    }
+
+    //TODO delete
     fun bleScan() {
         dirDisplay.initiateScan()
     }
