@@ -10,7 +10,6 @@ import android.bluetooth.le.ScanResult
 import android.bluetooth.le.ScanSettings
 import android.content.Context
 import android.content.Intent
-import android.os.Handler
 import android.util.Log
 import androidx.core.content.ContextCompat.getSystemService
 import java.util.*
@@ -42,15 +41,21 @@ class BleDirDisplay(private val context: Context) {
     var currMode: Mode = Mode.NOTHING
     var currMeters = 0
 
+    var gattConnStatus = 0
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
     private var scanning = false
 
-    private val handler = Handler()
     var bluetoothGatt: BluetoothGatt? = null
 
     private val uuidToDataMappingCharsToWrite = mutableMapOf<UUID, ByteArray>()
+    private val lastScanIntent = PendingIntent.getBroadcast(
+        context,
+        0,
+        Intent(GATT_CONN_STATE_CHANGE_ACTION),
+        PendingIntent.FLAG_UPDATE_CURRENT
+    )
 
     private val bluetoothGattCallback = object : BluetoothGattCallback() {
         override fun onConnectionStateChange(
@@ -88,26 +93,28 @@ class BleDirDisplay(private val context: Context) {
         }
     }
 
-    //TODO delete
-    fun connectBle(res: ScanResult) {
+    fun connectBleScanResult(res: ScanResult) {
         bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)
     }
 
-    //TODO delete
-    fun initiateScan() {
-        scanLeDevice()
-    }
+    fun startScan() {
+        if (scanning) {
+            return
+        }
+        scanning = true
 
-    private fun scanLeDevice() {
         val settings = ScanSettings.Builder().build()
         val filter = ScanFilter.Builder().setDeviceAddress(DEVICE_ADDRESS).build()
-        val pendingIntent = PendingIntent.getBroadcast(
-            context,
-            0,
-            Intent(GATT_CONN_STATE_CHANGE_ACTION),
-            PendingIntent.FLAG_UPDATE_CURRENT
-        )
-        bluetoothLeScanner.startScan(listOf(filter), settings, pendingIntent)
+        bluetoothLeScanner.startScan(listOf(filter), settings, lastScanIntent)
+    }
+
+    fun stopScan() {
+        if (!scanning) {
+            return
+        }
+        scanning = false
+
+        bluetoothLeScanner.stopScan(lastScanIntent)
     }
 
     fun requestCharacteristicUpdate(uuid: UUID, data: Byte) {

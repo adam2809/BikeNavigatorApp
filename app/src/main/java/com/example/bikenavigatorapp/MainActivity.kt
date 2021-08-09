@@ -5,9 +5,9 @@ import android.app.Activity
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
-import android.bluetooth.le.BluetoothLeScanner
-import android.bluetooth.le.ScanResult
-import android.content.*
+import android.content.ComponentName
+import android.content.Intent
+import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
@@ -78,7 +78,6 @@ class MainActivity : AppCompatActivity() {
             sharePlaceUrl = getSharePlaceUrlFromIntent()
         }
 
-        registerGattConnStateChangeReceiver()
 //        TODO should have a shared preference to remember previous state of gatt connection sinco now activity can be restarted without restarting the gatt connectionfEJC
         updateConnectionStatusTextView(BluetoothProfile.STATE_DISCONNECTED)
     }
@@ -173,30 +172,6 @@ class MainActivity : AppCompatActivity() {
             val enableBtIntent = Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)
             startActivityForResult(enableBtIntent, ENABLE_BLUETOOTH_REQUEST_CODE)
         }
-    }
-
-    private fun registerGattConnStateChangeReceiver() {
-        val gattConnStateChangeBr = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                intent?.extras?.getInt(BleDirDisplay.GATT_CONN_STATE_CHANGE_EXTRA)?.let {
-                    Log.d(TAG, "Receiving gatt conn state change broadcast")
-                    updateConnectionStatusTextView(it)
-                }
-
-                intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
-                    Log.d(TAG, "Receiving ble scan results with callback type $extra")
-                    val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
-                        BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
-                    )
-                    scanResults?.firstOrNull()?.let {
-                        mService?.connectBle(it)
-                    }
-                }
-            }
-        }
-
-        val filter = IntentFilter(BleDirDisplay.GATT_CONN_STATE_CHANGE_ACTION)
-        registerReceiver(gattConnStateChangeBr, filter)
     }
 
     fun updateConnectionStatusTextView(state: Int) {

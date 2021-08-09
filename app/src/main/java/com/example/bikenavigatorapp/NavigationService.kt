@@ -1,8 +1,12 @@
 package com.example.bikenavigatorapp
 
 import android.app.*
+import android.bluetooth.le.BluetoothLeScanner
 import android.bluetooth.le.ScanResult
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.res.Configuration
 import android.location.Location
 import android.os.*
@@ -57,11 +61,14 @@ class NavigationService : Service() {
      */
     var mLocation: Location? = null
 
-    private val dirDisplay = BleDirDisplay(this)
+    private lateinit var dirDisplay: BleDirDisplay
     private var nav: Navigator? = null
     private lateinit var dirs: DirApi
 
+//    var gattConnStateChangeCb: ((Int) -> Unit)? = null
+
     override fun onCreate() {
+        dirDisplay = BleDirDisplay(this)
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         mLocationCallback = object : LocationCallback() {
             override fun onLocationResult(locationResult: LocationResult) {
@@ -100,6 +107,8 @@ class NavigationService : Service() {
             // Set the Notification Channel for the Notification Manager.
             mNotificationManager.createNotificationChannel(mChannel)
         }
+
+        registerGattConnStateChangeReceiver()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -316,14 +325,30 @@ class NavigationService : Service() {
         }
     }
 
-    //TODO delete
-    fun connectBle(res: ScanResult) {
-        dirDisplay.connectBle(res)
+
+    private fun registerGattConnStateChangeReceiver() {
+        val gattConnStateChangeBr = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
+                    Log.d(TAG, "Receiving ble scan results with callback type $extra")
+                    val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
+                        BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
+                    )
+                    scanResults?.firstOrNull()?.let {
+                        dirDisplay.connectBleScanResult(it)
+                        dirDisplay.stopScan()
+                    }
+                }
+            }
+        }
+
+        val filter = IntentFilter(BleDirDisplay.GATT_CONN_STATE_CHANGE_ACTION)
+        registerReceiver(gattConnStateChangeBr, filter)
     }
 
     //TODO delete
     fun bleScan() {
-        dirDisplay.initiateScan()
+        dirDisplay.startScan()
     }
 
     fun getBleStatus(): Boolean {
