@@ -109,6 +109,8 @@ class NavigationService : Service() {
         }
 
         registerGattConnStateChangeReceiver()
+
+        bleScan()
     }
 
     override fun onStartCommand(intent: Intent, flags: Int, startId: Int): Int {
@@ -351,8 +353,8 @@ class NavigationService : Service() {
         dirDisplay.startScan()
     }
 
-    fun getBleStatus(): Boolean {
-        return dirDisplay.characteristicsSanityCheck()
+    fun getBleStatus(): Int {
+        return dirDisplay.gattConnStatus
     }
 
     /**

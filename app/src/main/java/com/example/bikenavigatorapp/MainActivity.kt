@@ -38,10 +38,7 @@ class MainActivity : AppCompatActivity() {
                 } ?: run {
                     Log.w(TAG, "Trying to update navigation in service without dest url provided")
                 }
-                updateConnectionStatusTextView(if(boundService.getBleStatus()) {
-                    BluetoothProfile.STATE_CONNECTED
-                }else{
-                    BluetoothProfile.STATE_DISCONNECTED})
+                updateConnectionStatusTextView(boundService.getBleStatus())
             }
         }
 

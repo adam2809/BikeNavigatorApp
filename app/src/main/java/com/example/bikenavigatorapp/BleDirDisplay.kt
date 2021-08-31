@@ -103,6 +103,7 @@ class BleDirDisplay(private val context: Context) {
         if (scanning) {
             return
         }
+        Log.i(TAG, "Starting scan")
         scanning = true
 
         sendUpdateGattStateBroadcast(GATT_STATE_SCANNING)
@@ -117,6 +118,7 @@ class BleDirDisplay(private val context: Context) {
         if (!scanning) {
             return
         }
+        Log.i(TAG, "Stopping scan")
         scanning = false
 
         bluetoothLeScanner.stopScan(lastScanIntent)
@@ -202,6 +204,8 @@ class BleDirDisplay(private val context: Context) {
     }
 
     private fun sendUpdateGattStateBroadcast(state: Int) {
+        gattConnStatus = state
+
         Intent().also {
             it.action = GATT_CONN_STATE_CHANGE_ACTION
             it.putExtra(GATT_CONN_STATE_CHANGE_EXTRA, state)
