@@ -34,6 +34,8 @@ class BleDirDisplay(private val context: Context) {
         const val GATT_STATE_SCAN_SUCCESS = 5;
         const val GATT_STATE_SCAN_FAIL = 6;
         private const val PACKAGE_NAME = "com.example.bikenavigatorapp"
+        const val GATT_SCAN_RES_ACTION = "$PACKAGE_NAME.GATT_SCAN_RES_ACTION"
+
         const val GATT_CONN_STATE_CHANGE_ACTION = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_ACTION"
         const val GATT_CONN_STATE_CHANGE_EXTRA = "$PACKAGE_NAME.GATT_CONN_STATE_CHANGE_EXTRA"
     }
@@ -53,7 +55,7 @@ class BleDirDisplay(private val context: Context) {
     private val lastScanIntent = PendingIntent.getBroadcast(
         context,
         0,
-        Intent(GATT_CONN_STATE_CHANGE_ACTION),
+        Intent(GATT_SCAN_RES_ACTION),
         PendingIntent.FLAG_UPDATE_CURRENT
     )
 
@@ -103,11 +105,14 @@ class BleDirDisplay(private val context: Context) {
         }
         scanning = true
 
+        sendUpdateGattStateBroadcast(GATT_STATE_SCANNING)
+
         val settings = ScanSettings.Builder().build()
         val filter = ScanFilter.Builder().setDeviceAddress(DEVICE_ADDRESS).build()
         bluetoothLeScanner.startScan(listOf(filter), settings, lastScanIntent)
     }
 
+    //    TODO should set the state to disconnected in case nothing got connected during the scan
     fun stopScan() {
         if (!scanning) {
             return

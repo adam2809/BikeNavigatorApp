@@ -342,7 +342,7 @@ class NavigationService : Service() {
             }
         }
 
-        val filter = IntentFilter(BleDirDisplay.GATT_CONN_STATE_CHANGE_ACTION)
+        val filter = IntentFilter(BleDirDisplay.GATT_SCAN_RES_ACTION)
         registerReceiver(gattConnStateChangeBr, filter)
     }
 
