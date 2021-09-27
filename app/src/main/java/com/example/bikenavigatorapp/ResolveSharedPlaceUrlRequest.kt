@@ -50,10 +50,27 @@ private fun handleRedirect(error: VolleyError, onSuccessCb: (Loc, Int) -> Unit) 
         Log.e(ResolveSharePlaceUrlRequest.TAG, "Location header missing")
         return
     }
-    val dest = getLocationFromRedirectUrl(locationRedirectUrl)?.also {
-        Log.w(ResolveSharePlaceUrlRequest.TAG, "Extracted location from redirect url: $it")
+    val dest = getLocationFromRedirectUrl(
+        locationRedirectUrl,
+        DESTINATION_LOCATION_IN_DATA_PARAM_REGEX
+    )?.also {
+        Log.i(
+            ResolveSharePlaceUrlRequest.TAG,
+            "Extracted location from redirect url data parameter: $it"
+        )
+    } ?: getLocationFromRedirectUrl(
+        locationRedirectUrl,
+        DESTINATION_LOCATION_IN_PATH_REGEX
+    )?.also {
+        Log.i(
+            ResolveSharePlaceUrlRequest.TAG,
+            "Extracted location from redirect url path parameter: $it"
+        )
     } ?: run {
-        Log.e(ResolveSharePlaceUrlRequest.TAG, "Could not find location in url")
+        Log.e(
+            ResolveSharePlaceUrlRequest.TAG,
+            "Could not find location in url: $locationRedirectUrl"
+        )
         return
     }
 
@@ -65,8 +82,8 @@ private fun handleRedirect(error: VolleyError, onSuccessCb: (Loc, Int) -> Unit) 
 }
 
 
-private fun getLocationFromRedirectUrl(url: String): Loc? {
-    val locRes = DESTINATION_LOCATION_REGEX.find(url)
+private fun getLocationFromRedirectUrl(url: String, regex: Regex): Loc? {
+    val locRes = regex.find(url)
     locRes?.groupValues?.let {
         if (it.size != 3) {
             return@let null

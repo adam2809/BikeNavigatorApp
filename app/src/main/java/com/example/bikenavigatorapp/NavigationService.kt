@@ -108,7 +108,7 @@ class NavigationService : Service() {
             mNotificationManager.createNotificationChannel(mChannel)
         }
 
-        registerGattConnStateChangeReceiver()
+        registerScanResReceiver()
 
         bleScan()
     }
@@ -169,6 +169,7 @@ class NavigationService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG,"Destroying service")
+        unregisterReceiver(scanResBr)
         mServiceHandler.removeCallbacksAndMessages(null)
         dirDisplay.bluetoothGatt?.disconnect()
     }
@@ -328,24 +329,24 @@ class NavigationService : Service() {
     }
 
 
-    private fun registerGattConnStateChangeReceiver() {
-        val gattConnStateChangeBr = object : BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
-                    Log.d(TAG, "Receiving ble scan results with callback type $extra")
-                    val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
-                        BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
-                    )
-                    scanResults?.firstOrNull()?.let {
-                        dirDisplay.connectBleScanResult(it)
-                        dirDisplay.stopScan()
-                    }
+    private val scanResBr = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
+                Log.d(TAG, "Receiving ble scan results with callback type $extra")
+                val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
+                    BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
+                )
+                scanResults?.firstOrNull()?.let {
+                    dirDisplay.connectBleScanResult(it)
+                    dirDisplay.stopScan()
                 }
             }
         }
+    }
 
+    private fun registerScanResReceiver() {
         val filter = IntentFilter(BleDirDisplay.GATT_SCAN_RES_ACTION)
-        registerReceiver(gattConnStateChangeBr, filter)
+        registerReceiver(scanResBr, filter)
     }
 
     //TODO delete
