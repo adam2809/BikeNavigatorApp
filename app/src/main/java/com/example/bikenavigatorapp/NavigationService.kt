@@ -172,6 +172,7 @@ class NavigationService : Service() {
         unregisterReceiver(scanResBr)
         mServiceHandler.removeCallbacksAndMessages(null)
         dirDisplay.bluetoothGatt?.disconnect()
+        dirDisplay.bluetoothGatt?.close()
     }
 
     /**

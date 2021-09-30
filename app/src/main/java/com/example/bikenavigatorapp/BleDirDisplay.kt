@@ -192,14 +192,12 @@ class BleDirDisplay(private val context: Context) {
             }
         }
 
-        return try {
-            val service = gatt.getService(serviceUUID)
-            val characteristic = service.getCharacteristic(characterUUID)
-            characteristic.value = value
-            gatt.writeCharacteristic(characteristic)
-        } catch (e: Exception) {
-            e.printStackTrace()
-            false
+        gatt.getService(serviceUUID)?.getCharacteristic(characterUUID)?.let {
+            it.value = value
+            return gatt.writeCharacteristic(it)
+        } ?: run {
+            Log.w(TAG, "Characteristic $characterUUID cannot be found aborting write")
+            return false
         }
     }
 
