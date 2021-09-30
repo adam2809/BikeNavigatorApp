@@ -300,7 +300,7 @@ class NavigationService : Service() {
     }
 
     private fun onNewLocation(location: Location) {
-        Log.i(TAG, "New location: $location")
+        Log.d(TAG, "New location: $location")
         mLocation = location
 
         nav?.apply {

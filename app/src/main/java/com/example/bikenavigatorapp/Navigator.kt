@@ -62,19 +62,17 @@ class Navigator(
         val index = currStep.index ?: run {
             Log.w(TAG, "Step $currStep does not have an index")
         }
-        val dir: Dir = when {
-            index < steps.lastIndex -> steps[index + 1].toDir()
-            else -> currStep.toDir()
+
+
+        val dir: Dir = if (index == steps.lastIndex) {
+            Dir.FINISH
+        } else {
+            steps[index + 1].toDir()
         }
 
         Log.d(TAG, "Dir is $dir")
 
-        var meters: Int? = 0
-        currStep.let {
-            meters = checkForNewMeters(it)
-        }
-
-        meters?.let {
+        checkForNewMeters(currStep)?.let {
             Log.d(TAG, "Setting new meters=$it")
             dirDisplay.requestCharacteristicUpdate(
                 BleDirDisplay.METERS_CHARACTERISTIC_UUID,
