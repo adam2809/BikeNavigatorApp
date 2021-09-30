@@ -19,6 +19,8 @@ class Navigator(
         const val METERS_DISPLAY_INTERVAL = 2
     }
 
+    var currStep: Step
+
 
     var location: Location? = null
         set(value) {
@@ -40,6 +42,8 @@ class Navigator(
             BleDirDisplay.MODE_CHARACTERISTIC_UUID,
             Mode.NAVIGATION
         )
+
+        currStep = steps[0]
     }
 
     private fun update() {
@@ -48,24 +52,26 @@ class Navigator(
         }
         Log.d(TAG, "Location is = ${location?.latitude}  ${location?.longitude}")
 
-        val currStep = findCurrStepIndex()
+        val nextStep = findNextStep()
+        nextStep?.let {
+            currStep = nextStep
+        } ?: run {
+            Log.d(TAG, "Could not find next step cleaving curr step the same")
+        }
 
-        val index = currStep?.index ?: run {
+        val index = currStep.index ?: run {
             Log.w(TAG, "Step $currStep does not have an index")
         }
         val dir: Dir = when {
-            currStep == null -> Dir.NO_DIR
             index < steps.lastIndex -> steps[index + 1].toDir()
             else -> currStep.toDir()
         }
 
-        Log.d(TAG, "Dir is $currStep")
+        Log.d(TAG, "Dir is $dir")
 
         var meters: Int? = 0
-        currStep?.let {
+        currStep.let {
             meters = checkForNewMeters(it)
-        } ?: run {
-            Log.w(TAG, "Trying to set meters when curr step was not found")
         }
 
         meters?.let {
@@ -95,7 +101,7 @@ class Navigator(
         return null
     }
 
-    private fun findCurrStepIndex(): Step? {
+    private fun findNextStep(): Step? {
         steps.filter {
             isPointBetweenPerpendicularLines(
                 it.startLoc,
