@@ -67,9 +67,17 @@ class Navigator(
         val dir: Dir = if (index == steps.lastIndex) {
             Dir.FINISH
         } else {
-            steps[index + 1].toDir()
+            steps[index + 1].toDir().let {
+                if (it == Dir.ROUNDABOUT_LEFT || it == Dir.ROUNDABOUT_RIGHT)
+                    resolveRoundaboutDirection(currStep,
+                        steps[(currStep.index
+                            ?: throw IndexOutOfBoundsException("Step does not have an index assigned")) + 1]
+                    )
+                else
+                    it
+            }
         }
-
+        Log.d(TAG, "Step is $currStep")
         Log.d(TAG, "Dir is $dir")
 
         checkForNewMeters(currStep)?.let {
@@ -166,4 +174,22 @@ class Navigator(
         return l.value(pointLat, pointLng).signum() == l.value(lLineRefLat, lLineRefLng).signum() &&
                 k.value(pointLat, pointLng).signum() == k.value(kLineRefLat, kLineRefLng).signum()
     }
+}
+
+fun Int.notNegative(): Int = if (this < 0) 0 else this
+fun resolveRoundaboutDirection(beforeRoundabout: Step, afterRoundabout: Step): Dir {
+    val lineBeforeRoundabout = Line(beforeRoundabout.startLoc, beforeRoundabout.endLoc)
+    val lineAfterRoundabout = Line(afterRoundabout.startLoc, afterRoundabout.endLoc)
+    val lineStartEnd = Line(beforeRoundabout.startLoc, afterRoundabout.endLoc)
+
+    val valueOfBeforeAtAfterEnd =
+        lineBeforeRoundabout.value(afterRoundabout.endLoc).signum().notNegative()
+    val valueOfAfterAtBeforeStart =
+        lineAfterRoundabout.value(beforeRoundabout.startLoc).signum().notNegative()
+    val valueOfStartEndAtBeforeEnd =
+        lineStartEnd.value(beforeRoundabout.endLoc).signum().notNegative()
+    val bitmap =
+        (valueOfBeforeAtAfterEnd shl 2) or (valueOfAfterAtBeforeStart shl 1) or valueOfStartEndAtBeforeEnd
+
+    return if (((bitmap shr 2) == 0 || bitmap == 5) && bitmap != 2) Dir.ROUNDABOUT_LEFT else Dir.ROUNDABOUT_RIGHT
 }

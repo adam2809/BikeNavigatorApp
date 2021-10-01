@@ -5,6 +5,8 @@ import android.content.pm.PackageManager
 import android.location.Location
 import android.preference.PreferenceManager
 import androidx.core.content.ContextCompat
+import java.math.BigDecimal
+import java.math.BigInteger
 import java.text.DateFormat
 import java.util.*
 
@@ -86,3 +88,7 @@ fun Int.toByteArray(): ByteArray {
         (this shr 0).toByte()
     )
 }
+
+fun itNotBeZero(it: BigDecimal) = if (it.toBigInteger() == BigInteger("0")) BigDecimal(
+    0.000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000001
+) else it

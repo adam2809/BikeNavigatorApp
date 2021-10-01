@@ -8,6 +8,7 @@ import java.math.BigDecimal
 import kotlin.math.*
 
 
+//TODO Add keep-left and keep-right manouvers
 enum class Dir {
     NO_DIR,
     TURN_SHARP_LEFT,
@@ -71,20 +72,29 @@ data class Loc(val lat: Double, val lng: Double) {
     }
 }
 
-
 data class Line(val inc: BigDecimal, val lng: BigDecimal) {
     constructor(
         aLat: BigDecimal, aLng: BigDecimal,
         bLat: BigDecimal, bLng: BigDecimal
     ) : this(
-        (aLat - bLat) / (aLng - bLng),
-        (bLat - (aLat - bLat) / (aLng - bLng) * bLng)
+        (aLat - bLat) / (aLng - bLng).let(::itNotBeZero),
+        (bLat - (aLat - bLat) / (aLng - bLng).let(::itNotBeZero) * bLng)
+    )
+
+
+    constructor(a: Loc, b: Loc) : this(
+        BigDecimal(a.lat.toString()), BigDecimal(a.lng.toString()),
+        BigDecimal(b.lat.toString()), BigDecimal(b.lng.toString())
     )
 
     fun perpendicular(lat: BigDecimal, lng: BigDecimal): Line {
         (BigDecimal("1") / -inc).let { newInc ->
             return Line(newInc, lat - newInc * lng)
         }
+    }
+
+    fun value(loc: Loc): BigDecimal {
+        return value(BigDecimal(loc.lat), BigDecimal(loc.lng))
     }
 
     fun value(lat: BigDecimal, lng: BigDecimal): BigDecimal {
