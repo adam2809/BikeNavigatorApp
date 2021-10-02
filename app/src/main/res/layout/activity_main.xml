@@ -30,6 +30,13 @@ xmlns:android="http://schemas.android.com/apk/res/android">
             android:layout_height="wrap_content"
             android:onClick="switchSpeedometer"
             android:text="@string/start_speedometer" />
+
+        <Button
+            android:id="@+id/quit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:onClick="quit"
+            android:text="@string/quit" />
     </LinearLayout>
 
     <TextView

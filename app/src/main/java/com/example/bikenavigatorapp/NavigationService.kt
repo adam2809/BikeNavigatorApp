@@ -68,6 +68,7 @@ class NavigationService : Service() {
 //    var gattConnStateChangeCb: ((Int) -> Unit)? = null
 
     override fun onCreate() {
+        setRequestingLocationUpdates(this, false)
         dirDisplay = BleDirDisplay(this)
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
         mLocationCallback = object : LocationCallback() {
@@ -169,6 +170,7 @@ class NavigationService : Service() {
 
     override fun onDestroy() {
         Log.i(TAG,"Destroying service")
+        removeLocationUpdates()
         unregisterReceiver(scanResBr)
         mServiceHandler.removeCallbacksAndMessages(null)
         dirDisplay.bluetoothGatt?.disconnect()

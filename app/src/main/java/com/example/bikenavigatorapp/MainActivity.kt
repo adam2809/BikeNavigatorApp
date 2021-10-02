@@ -21,7 +21,7 @@ import com.example.bikenavigatorapp.NavigationService.LocalBinder
 
 class MainActivity : AppCompatActivity() {
     companion object {
-        private val TAG = "${NavigationService::class.java.simpleName}(bnalt)"
+        private val TAG = "${MainActivity::class.java.simpleName}(bnalt)"
         private const val ENABLE_BLUETOOTH_REQUEST_CODE = 1
         const val LOCATION_PERMISSION_REQUEST_CODE = 2
     }
@@ -238,5 +238,10 @@ class MainActivity : AppCompatActivity() {
         } else {
             resources.getString(R.string.start_speedometer)
         }
+    }
+
+    fun quit(view: View) {
+        stopService(Intent(applicationContext, NavigationService::class.java))
+        finish()
     }
 }

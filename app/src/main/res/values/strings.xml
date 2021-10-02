@@ -18,4 +18,5 @@
     <string name="start_speedometer">Start</string>
     <string name="stop_speedometer">Stop </string>
     <string name="speedometer">Speedometer:</string>
+    <string name="quit">Quit</string>
 </resources>
