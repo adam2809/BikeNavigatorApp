@@ -173,7 +173,7 @@ class MainActivity : AppCompatActivity() {
         val gattConnStateChangeBr = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 intent?.extras?.getInt(BleDirDisplay.GATT_CONN_STATE_CHANGE_EXTRA)?.let {
-                    Log.d(TAG, "Receiving gatt conn state change broadcast")
+                    Log.d(TAG, "Receiving gatt conn state change broadcast to $it")
                     updateConnectionStatusTextView(it)
                 }
             }

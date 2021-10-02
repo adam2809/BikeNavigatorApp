@@ -47,14 +47,14 @@ class BleDirDisplay(private val context: Context) {
     private val bluetoothManager by lazy { getSystemService(context, BluetoothManager::class.java) }
     private val bluetoothAdapter by lazy { bluetoothManager!!.adapter }
     private val bluetoothLeScanner by lazy { bluetoothAdapter.bluetoothLeScanner }
-    private var scanning = false
+    public var isScanning = false
 
     var bluetoothGatt: BluetoothGatt? = null
 
     private val uuidToDataMappingCharsToWrite = mutableMapOf<UUID, ByteArray>()
     private val lastScanIntent = PendingIntent.getBroadcast(
         context,
-        0,
+        1,
         Intent(GATT_SCAN_RES_ACTION),
         PendingIntent.FLAG_UPDATE_CURRENT
     )
@@ -96,15 +96,18 @@ class BleDirDisplay(private val context: Context) {
     }
 
     fun connectBleScanResult(res: ScanResult) {
+        if (gattConnStatus == BluetoothProfile.STATE_CONNECTED || gattConnStatus == BluetoothProfile.STATE_CONNECTING) {
+            return
+        }
         bluetoothGatt = res.device.connectGatt(context, false, bluetoothGattCallback)
     }
 
     fun startScan() {
-        if (scanning) {
+        if (isScanning) {
             return
         }
         Log.i(TAG, "Starting scan")
-        scanning = true
+        isScanning = true
 
         sendUpdateGattStateBroadcast(GATT_STATE_SCANNING)
 
@@ -115,11 +118,11 @@ class BleDirDisplay(private val context: Context) {
 
     //    TODO should set the state to disconnected in case nothing got connected during the scan
     fun stopScan() {
-        if (!scanning) {
+        if (!isScanning) {
             return
         }
         Log.i(TAG, "Stopping scan")
-        scanning = false
+        isScanning = false
 
         bluetoothLeScanner.stopScan(lastScanIntent)
     }

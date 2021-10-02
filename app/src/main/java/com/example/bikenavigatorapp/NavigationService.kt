@@ -169,10 +169,14 @@ class NavigationService : Service() {
     }
 
     override fun onDestroy() {
-        Log.i(TAG,"Destroying service")
+        Log.i(TAG, "Destroying service")
         removeLocationUpdates()
         unregisterReceiver(scanResBr)
         mServiceHandler.removeCallbacksAndMessages(null)
+        disconnectBle();
+    }
+
+    fun disconnectBle() {
         dirDisplay.bluetoothGatt?.disconnect()
         dirDisplay.bluetoothGatt?.close()
     }
@@ -335,10 +339,14 @@ class NavigationService : Service() {
     private val scanResBr = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             intent?.extras?.getInt(BluetoothLeScanner.EXTRA_CALLBACK_TYPE)?.let { extra ->
+                if (!dirDisplay.isScanning) {
+                    return
+                }
                 Log.d(TAG, "Receiving ble scan results with callback type $extra")
                 val scanResults = intent.getParcelableArrayListExtra<ScanResult>(
                     BluetoothLeScanner.EXTRA_LIST_SCAN_RESULT
                 )
+
                 scanResults?.firstOrNull()?.let {
                     dirDisplay.connectBleScanResult(it)
                     dirDisplay.stopScan()
